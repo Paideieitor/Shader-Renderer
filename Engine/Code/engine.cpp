@@ -178,6 +178,12 @@ u32 LoadTexture2D(App* app, const char* filepath)
     }
 }
 
+struct VertexV3V2
+{
+    glm::vec3 pos;
+    glm::vec2 uv;
+};
+
 void Init(App* app)
 {
     // TODO: Initialize your resources here!
@@ -193,7 +199,21 @@ void Init(App* app)
 void Gui(App* app)
 {
     ImGui::Begin("Info");
-    ImGui::Text("FPS: %f", 1.0f/app->deltaTime);
+
+    ImGui::BulletText("OpenGL version: %s", glGetString(GL_VERSION));
+    ImGui::BulletText("OpenGL renderer: %s", glGetString(GL_RENDERER));
+    ImGui::BulletText("OpenGL vendor: %s", glGetString(GL_VENDOR));
+    ImGui::BulletText("OpenGL GLSL version: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
+    if (ImGui::TreeNode("OpenGL extensions"))
+    {
+        GLint num_extensions;
+        glGetIntegerv(GL_NUM_EXTENSIONS, &num_extensions);
+        for (int i = 0; i < num_extensions; ++i)
+            ImGui::Text("%s", glGetStringi(GL_EXTENSIONS, GLuint(i)));
+        ImGui::TreePop();
+    }
+    ImGui::BulletText("FPS: %f", 1.0f/app->deltaTime);
+
     ImGui::End();
 }
 

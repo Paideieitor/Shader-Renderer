@@ -119,25 +119,9 @@ void Init(App* app)
             app->texturedMeshProgramIdx = LoadProgram(app, "shaders.glsl", "SHOW_TEXTURED_MESH");
             Program& texturedMeshProgram = app->programs[app->texturedMeshProgramIdx];
 
-            GLint attribCount = 0;
-            glGetProgramiv(texturedMeshProgram.handle, GL_ACTIVE_ATTRIBUTES, &attribCount);
-
-            for (GLint i = 0; i < attribCount; ++i)
-            {
-                char name[64];
-                GLsizei nameLenght = 64;
-                GLint size;
-                GLenum type;
-
-                glGetActiveAttrib(texturedMeshProgram.handle, i, ARRAY_COUNT(name), &nameLenght, &size, &type, name);
-
-                GLint location = glGetAttribLocation(texturedMeshProgram.handle, name);
-                texturedMeshProgram.vetexInputLayout.attributes.push_back({ (u8)location,(u8)size });
-            }
-
-            app->texturedMeshProgram_uTexture = glGetUniformLocation(texturedMeshProgram.handle, "uTexture");
-
             app->patrickIdx = LoadModel(app, "Patrick/Patrick.obj");
+
+            glEnable(GL_DEPTH_TEST);
         }
         break;
     default:;

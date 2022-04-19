@@ -22,10 +22,83 @@ struct Image
     i32   stride;
 };
 
+struct VertexV3V2
+{
+    glm::vec3 pos;
+    glm::vec2 uv;
+};
+
+struct VertexBufferAttribute
+{
+    u8 location;
+    u8 componentCount;
+    u8 offset;
+};
+
+struct VertexBufferLayout
+{
+    std::vector<VertexBufferAttribute> attributes;
+    u8 stride;
+};
+
+struct VertexShaderAttribute
+{
+    u8 location;
+    u8 componentCount;
+};
+
+struct VertexShaderLayout
+{
+    std::vector<VertexShaderAttribute> attributes;
+};
+
+struct VAO
+{
+    GLuint handle;
+    GLuint programHandle;
+};
+
 struct Texture
 {
     GLuint      handle;
     std::string filepath;
+};
+
+struct Material
+{
+    std::string name;
+    vec3 albedo;
+    vec3 emissive;
+    f32 smothness;
+    u32 albedoTextureIdx;
+    u32 emissiveTextureIdx;
+    u32 specularTextureIdx;
+    u32 normalsTextureIdx;
+    u32 bumpTextureIdx;
+};
+
+struct Submesh
+{
+    VertexBufferLayout vertexBufferLayout;
+    std::vector<float> vertices;
+    std::vector<u32> indices;
+    u32 vectexOffset;
+    u32 indexOffset;
+
+    std::vector<VAO> vaos;
+};
+
+struct Mesh
+{
+    std::vector<Submesh> submeshes;
+    GLuint vertexBufferHandle;
+    GLuint indexBufferHandle;
+};
+
+struct Model
+{
+    u32 meshIdx;
+    std::vector<u32> materialIdx;
 };
 
 struct Program
@@ -34,11 +107,14 @@ struct Program
     std::string        filepath;
     std::string        programName;
     u64                lastWriteTimestamp; // What is this for?
+
+    VertexShaderLayout vetexInputLayout;
 };
 
 enum Mode
 {
     Mode_TexturedQuad,
+    Mode_TexturedModel,
     Mode_Count
 };
 
@@ -58,10 +134,14 @@ struct App
     ivec2 displaySize;
 
     std::vector<Texture>  textures;
+    std::vector<Material> materials;
+    std::vector<Mesh> meshes;
+    std::vector<Model> models;
     std::vector<Program>  programs;
 
     // program indices
     u32 texturedGeometryProgramIdx;
+    u32 texturedMeshProgramIdx;
     
     // texture indices
     u32 diceTexIdx;

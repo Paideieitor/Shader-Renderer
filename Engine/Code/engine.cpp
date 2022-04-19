@@ -178,12 +178,6 @@ u32 LoadTexture2D(App* app, const char* filepath)
     }
 }
 
-struct VertexV3V2
-{
-    glm::vec3 pos;
-    glm::vec2 uv;
-};
-
 const VertexV3V2 vertices[] = {
     {glm::vec3(-0.5f, -0.5f, 0.0f), glm::vec2(0.0, 0.0)},
     {glm::vec3(0.5f, -0.5f, 0.0f), glm::vec2(1.0, 0.0)},
@@ -198,39 +192,71 @@ const u16 indices[] = {
 
 void Init(App* app)
 {
-    // VBO & EBO
-    glGenBuffers(1, &app->embeddedVertices);
-    glBindBuffer(GL_ARRAY_BUFFER, app->embeddedVertices);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    app->mode = Mode_TexturedModel;
 
-    glGenBuffers(1, &app->embeddedElements);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, app->embeddedElements);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    // VAO
-    glGenVertexArrays(1, &app->vao);
-    glBindVertexArray(app->vao);
-    glBindBuffer(GL_ARRAY_BUFFER, app->embeddedVertices);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexV3V2), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(VertexV3V2), (void*)12);
-    glEnableVertexAttribArray(1);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, app->embeddedElements);
-    glBindVertexArray(0);
-    // Program
-    app->texturedGeometryProgramIdx = LoadProgram(app, "shaders.glsl", "TEXTURED_GEOMETRY");
-    Program& texturedGeometryProgram = app->programs[app->texturedGeometryProgramIdx];
+    switch (app->mode)
+    {
+    case Mode_TexturedQuad:
 
-    app->programUniformTexture = glGetUniformLocation(texturedGeometryProgram.handle, "uTexture");
-    // Texture
-    app->diceTexIdx = LoadTexture2D(app, "dice.png");
-    app->whiteTexIdx = LoadTexture2D(app, "color_white.png");
-    app->blackTexIdx = LoadTexture2D(app, "color_black.png");
-    app->normalTexIdx = LoadTexture2D(app, "color_normal.png");
-    app->magentaTexIdx = LoadTexture2D(app, "color_magenta.png");
+        // VBO & EBO
+        glGenBuffers(1, &app->embeddedVertices);
+        glBindBuffer(GL_ARRAY_BUFFER, app->embeddedVertices);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    app->mode = Mode_TexturedQuad;
+        glGenBuffers(1, &app->embeddedElements);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, app->embeddedElements);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+        // VAO
+        glGenVertexArrays(1, &app->vao);
+        glBindVertexArray(app->vao);
+        glBindBuffer(GL_ARRAY_BUFFER, app->embeddedVertices);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexV3V2), (void*)0);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(VertexV3V2), (void*)12);
+        glEnableVertexAttribArray(1);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, app->embeddedElements);
+        glBindVertexArray(0);
+
+        // Program
+        app->texturedGeometryProgramIdx = LoadProgram(app, "shaders.glsl", "TEXTURED_GEOMETRY");
+        Program& texturedGeometryProgram = app->programs[app->texturedGeometryProgramIdx];
+
+        app->programUniformTexture = glGetUniformLocation(texturedGeometryProgram.handle, "uTexture");
+
+        // Texture
+        app->diceTexIdx = LoadTexture2D(app, "dice.png");
+        app->whiteTexIdx = LoadTexture2D(app, "color_white.png");
+        app->blackTexIdx = LoadTexture2D(app, "color_black.png");
+        app->normalTexIdx = LoadTexture2D(app, "color_normal.png");
+        app->magentaTexIdx = LoadTexture2D(app, "color_magenta.png");
+        break;
+
+    case Mode_TexturedModel:
+
+        // Fill vertex input layout with required attributes
+        app->texturedMeshProgramIdx = LoadProgram(app, "shaders.glsl", "SHOW_TEXTURED_MESH");
+        Program& texturedMeshProgram = app->programs[app->texturedGeometryProgramIdx];
+        texturedMeshProgram.vetexInputLayout.attributes.push_back({ 0,3 }); // position
+        texturedMeshProgram.vetexInputLayout.attributes.push_back({ 2,2 }); // texCoord
+
+
+        // create the vertex format
+        //VertexBufferLayout vertexBufferLayout = {};
+        //vertexBufferLayout.attributes.push_back(VertexBufferAttribute{ 0,3,0 });
+        //vertexBufferLayout.attributes.push_back(VertexBufferAttribute{ 2,2,3 * sizeof(float) });
+        //vertexBufferLayout.stride = 5 * sizeof(float);
+        //
+        //// add submesh into the mesh
+        //Submesh submesh = {};
+        //submesh.vertexBufferLayout = vertexBufferLayout;
+        //submesh.vertices.swap(vertices);
+        //submesh.indices.swap(indices);
+        //myMesh.submeshes.push_back(submesh);
+        break;
+    }
 }
 
 void Gui(App* app)
@@ -286,6 +312,27 @@ void Render(App* app)
 
                 glBindVertexArray(0);
                 glUseProgram(0);
+            }
+            break;
+
+        case Mode_TexturedModel:
+            {
+                Program& texturedMeshProgram = app->programs[app->texturedMeshProgramIdx];
+                glUseProgram(texturedMeshProgram.handle);
+
+                Model& model = app->models[app->patrickIdx];
+                Mesh& mesh = app->meshes[model.meshIdx];
+
+                for (u32 i = 0; i < mesh.submeshes.size(); ++i)
+                {
+                    GLuint vao = FindVAO(mesh, i, texturedMeshProgram);
+                    glBindVertexArray(vao);
+
+                    u32 submeshMaterialIdx = model.materialIdx[i];
+                    Material& submeshMaterial = app->materials[submeshMaterialIdx];
+
+                    glActiveTexture(GL_TEXTURE0);
+                }
             }
             break;
 

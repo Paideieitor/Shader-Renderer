@@ -69,7 +69,7 @@ struct Material
     std::string name;
     vec3 albedo;
     vec3 emissive;
-    f32 smothness;
+    f32 smoothness;
     u32 albedoTextureIdx;
     u32 emissiveTextureIdx;
     u32 specularTextureIdx;
@@ -82,7 +82,7 @@ struct Submesh
     VertexBufferLayout vertexBufferLayout;
     std::vector<float> vertices;
     std::vector<u32> indices;
-    u32 vectexOffset;
+    u32 vertexOffset;
     u32 indexOffset;
 
     std::vector<VAO> vaos;
@@ -114,7 +114,7 @@ struct Program
 enum Mode
 {
     Mode_TexturedQuad,
-    Mode_TexturedModel,
+    Mode_TexturedMesh,
     Mode_Count
 };
 
@@ -149,6 +149,7 @@ struct App
     u32 blackTexIdx;
     u32 normalTexIdx;
     u32 magentaTexIdx;
+    u32 patrickIdx;
 
     // Mode
     Mode mode;
@@ -159,8 +160,8 @@ struct App
     GLuint embeddedElements;
 
     // Location of the texture uniform in the textured quad shader
-    GLuint programUniformTexture;
-
+    GLuint texturedQuadProgram_uTexture;
+    GLuint texturedMeshProgram_uTexture;
     // VAO object to link our screen filling quad with our textured quad shader
     GLuint vao;
 };
@@ -172,4 +173,3 @@ void Gui(App* app);
 void Update(App* app);
 
 void Render(App* app);
-

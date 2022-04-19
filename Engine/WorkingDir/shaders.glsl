@@ -41,7 +41,7 @@ void main()
 #if defined(VERTEX) ///////////////////////////////////////////////////
 
 layout(location = 0) in vec3 aPosition;
-layout(location = 1) in vec2 aTexCoord;
+layout(location = 2) in vec2 aTexCoord;
 
 out vec2 vTexCoord;
 
@@ -50,8 +50,7 @@ void main()
 	vTexCoord = aTexCoord;
 
 	float clippingScale = 5.0;
-
-	gl_Position = vec4(aPosition, 1.0);
+	gl_Position = vec4(aPosition, clippingScale);
 
 	gl_Position.z = -gl_Position.z;
 }

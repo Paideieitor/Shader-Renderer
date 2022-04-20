@@ -71,11 +71,25 @@ GLuint FindVAO(Mesh& mesh, u32 submeshIdx, const Program& program)
 
 void Init(App* app)
 {
-    app->mode = Mode_TexturedMesh;
+    app->mode = Mode::TexturedQuad;
+
+    memcpy(app->openGlVersion, glGetString(GL_VERSION), 64);
+    memcpy(app->gpuName, glGetString(GL_RENDERER), 64);
+    memcpy(app->openGlVendor, glGetString(GL_VENDOR), 64);
+    memcpy(app->GLSLVersion, glGetString(GL_SHADING_LANGUAGE_VERSION), 64);
+
+    GLint extensionNum;
+    glGetIntegerv(GL_NUM_EXTENSIONS, &extensionNum);
+    for (int i = 0; i < extensionNum; ++i)
+    {
+        GLubyte extension[64];
+        memcpy(extension, glGetStringi(GL_EXTENSIONS, GLuint(i)), 64);
+        app->openGLExtensions.push_back(extension);
+    }
 
     switch (app->mode)
     {
-    case Mode_TexturedQuad:
+    case Mode::TexturedQuad:
         {
             // VBO & EBO
             glGenBuffers(1, &app->embeddedVertices);
@@ -103,7 +117,7 @@ void Init(App* app)
             app->texturedGeometryProgramIdx = LoadProgram(app, "shaders.glsl", "TEXTURED_GEOMETRY");
             Program& texturedGeometryProgram = app->programs[app->texturedGeometryProgramIdx];
 
-            app->texturedQuadProgram_uTexture = glGetUniformLocation(texturedGeometryProgram.handle, "uTexture");
+            texturedGeometryProgram.uTexture = glGetUniformLocation(texturedGeometryProgram.handle, "uTexture");
 
             // Texture
             app->diceTexIdx = LoadTexture2D(app, "dice.png");
@@ -113,7 +127,7 @@ void Init(App* app)
             app->magentaTexIdx = LoadTexture2D(app, "color_magenta.png");
         }
         break;
-    case Mode_TexturedMesh:
+    case Mode::TexturedMesh:
         {
             // Fill vertex input layout with required attributes
             app->texturedMeshProgramIdx = LoadProgram(app, "shaders.glsl", "SHOW_TEXTURED_MESH");
@@ -132,16 +146,14 @@ void Gui(App* app)
 {
     ImGui::Begin("Info");
 
-    ImGui::BulletText("OpenGL version: %s", glGetString(GL_VERSION));
-    ImGui::BulletText("OpenGL renderer: %s", glGetString(GL_RENDERER));
-    ImGui::BulletText("OpenGL vendor: %s", glGetString(GL_VENDOR));
-    ImGui::BulletText("OpenGL GLSL version: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
+    ImGui::BulletText("OpenGL version: %s", app->openGlVersion);
+    ImGui::BulletText("OpenGL renderer: %s", app->gpuName);
+    ImGui::BulletText("OpenGL vendor: %s", app->openGlVendor);
+    ImGui::BulletText("OpenGL GLSL version: %s", app->GLSLVersion);
     if (ImGui::TreeNode("OpenGL extensions"))
     {
-        GLint num_extensions;
-        glGetIntegerv(GL_NUM_EXTENSIONS, &num_extensions);
-        for (int i = 0; i < num_extensions; ++i)
-            ImGui::Text("%s", glGetStringi(GL_EXTENSIONS, GLuint(i)));
+        for (int i = 0; i < app->openGLExtensions.size(); ++i)
+            ImGui::Text("%s", app->openGLExtensions[i]);
         ImGui::TreePop();
     }
     ImGui::BulletText("FPS: %f", 1.0f/app->deltaTime);
@@ -158,7 +170,7 @@ void Render(App* app)
 {
     switch (app->mode)
     {
-        case Mode_TexturedQuad:
+        case Mode::TexturedQuad:
             {
                 glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -172,7 +184,7 @@ void Render(App* app)
                 glEnable(GL_BLEND);
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-                glUniform1i(app->texturedQuadProgram_uTexture, 0);
+                glUniform1i(texturedGeometryProgram.uTexture, 0);
                 glActiveTexture(GL_TEXTURE0);
                 GLuint textureHandle = app->textures[app->diceTexIdx].handle;
                 glBindTexture(GL_TEXTURE_2D, textureHandle);
@@ -184,7 +196,7 @@ void Render(App* app)
             }
             break;
 
-        case Mode_TexturedMesh:
+        case Mode::TexturedMesh:
             {
                 glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -207,7 +219,7 @@ void Render(App* app)
 
                     glActiveTexture(GL_TEXTURE0);
                     glBindTexture(GL_TEXTURE_2D, app->textures[submeshMaterial.albedoTextureIdx].handle);
-                    glUniform1i(app->texturedMeshProgram_uTexture, 0);
+                    glUniform1i(texturedMeshProgram.uTexture, 0);
 
                     Submesh& submesh = mesh.submeshes[i];
                     glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);

@@ -7,9 +7,9 @@
 #include "platform.h"
 #include <glad/glad.h>
 
-typedef glm::vec2  vec2;
-typedef glm::vec3  vec3;
-typedef glm::vec4  vec4;
+typedef glm::vec2 vec2;
+typedef glm::vec3 vec3;
+typedef glm::vec4 vec4;
 typedef glm::ivec2 ivec2;
 typedef glm::ivec3 ivec3;
 typedef glm::ivec4 ivec4;
@@ -18,8 +18,8 @@ struct Image
 {
     void* pixels;
     ivec2 size;
-    i32   nchannels;
-    i32   stride;
+    i32 nchannels;
+    i32 stride;
 };
 
 struct VertexV3V2
@@ -60,7 +60,7 @@ struct VAO
 
 struct Texture
 {
-    GLuint      handle;
+    GLuint handle;
     std::string filepath;
 };
 
@@ -103,19 +103,20 @@ struct Model
 
 struct Program
 {
-    GLuint             handle;
-    std::string        filepath;
-    std::string        programName;
-    u64                lastWriteTimestamp; // What is this for?
+    GLuint handle;
+    GLuint uTexture;
+    std::string filepath;
+    std::string programName;
+    u64 lastWriteTimestamp; // What is this for?
 
     VertexShaderLayout vetexInputLayout;
 };
 
-enum Mode
+enum class Mode
 {
-    Mode_TexturedQuad,
-    Mode_TexturedMesh,
-    Mode_Count
+    TexturedQuad,
+    TexturedMesh,
+    Count
 };
 
 struct App
@@ -123,13 +124,16 @@ struct App
     // Loop
     f32  deltaTime;
     bool isRunning;
-
+    
     // Input
     Input input;
 
     // Graphics
-    char gpuName[64];
-    char openGlVersion[64];
+    GLubyte gpuName[64];
+    GLubyte openGlVersion[64];
+    GLubyte openGlVendor[64];
+    GLubyte GLSLVersion[64];
+    std::vector<GLubyte*> openGLExtensions;
 
     ivec2 displaySize;
 
@@ -159,9 +163,6 @@ struct App
     GLuint embeddedVertices;
     GLuint embeddedElements;
 
-    // Location of the texture uniform in the textured quad shader
-    GLuint texturedQuadProgram_uTexture;
-    GLuint texturedMeshProgram_uTexture;
     // VAO object to link our screen filling quad with our textured quad shader
     GLuint vao;
 };

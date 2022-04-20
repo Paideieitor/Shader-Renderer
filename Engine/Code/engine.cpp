@@ -10,18 +10,6 @@
 
 #include <imgui.h>
 
-const VertexV3V2 vertices[] = {
-    {glm::vec3(-0.5f, -0.5f, 0.0f), glm::vec2(0.0, 0.0)},
-    {glm::vec3(0.5f, -0.5f, 0.0f), glm::vec2(1.0, 0.0)},
-    {glm::vec3(0.5f, 0.5f, 0.0f), glm::vec2(1.0, 1.0)},
-    {glm::vec3(-0.5f, 0.5f, 0.0f), glm::vec2(0.0, 1.0)}
-};
-
-const u16 indices[] = {
-    0, 1, 2,
-    0, 2, 3
-};
-
 GLuint FindVAO(Mesh& mesh, u32 submeshIdx, const Program& program)
 {
     Submesh& submesh = mesh.submeshes[submeshIdx];
@@ -71,13 +59,13 @@ GLuint FindVAO(Mesh& mesh, u32 submeshIdx, const Program& program)
 
 void Init(App* app)
 {
-    app->mode = Mode::TexturedQuad;
+    app->mode = Mode::TexturedMesh;
 
+    // Saving openGL details
     memcpy(app->openGlVersion, glGetString(GL_VERSION), 64);
     memcpy(app->gpuName, glGetString(GL_RENDERER), 64);
     memcpy(app->openGlVendor, glGetString(GL_VENDOR), 64);
     memcpy(app->GLSLVersion, glGetString(GL_SHADING_LANGUAGE_VERSION), 64);
-
     GLint extensionNum;
     glGetIntegerv(GL_NUM_EXTENSIONS, &extensionNum);
     for (int i = 0; i < extensionNum; ++i)
@@ -87,59 +75,13 @@ void Init(App* app)
         app->openGLExtensions.push_back(extension);
     }
 
-    switch (app->mode)
-    {
-    case Mode::TexturedQuad:
-        {
-            // VBO & EBO
-            glGenBuffers(1, &app->embeddedVertices);
-            glBindBuffer(GL_ARRAY_BUFFER, app->embeddedVertices);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
+     // Fill vertex input layout with required attributes
+     GLuint programIdx = LoadProgram(app, "shaders.glsl", "SHOW_TEXTURED_MESH");
+     Program& texturedMeshProgram = app->programs[programIdx];
 
-            glGenBuffers(1, &app->embeddedElements);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, app->embeddedElements);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+     LoadModel(app, "Patrick/Patrick.obj", programIdx);
 
-            // VAO
-            glGenVertexArrays(1, &app->vao);
-            glBindVertexArray(app->vao);
-            glBindBuffer(GL_ARRAY_BUFFER, app->embeddedVertices);
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexV3V2), (void*)0);
-            glEnableVertexAttribArray(0);
-            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(VertexV3V2), (void*)12);
-            glEnableVertexAttribArray(1);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, app->embeddedElements);
-            glBindVertexArray(0);
-
-            // Program
-            app->texturedGeometryProgramIdx = LoadProgram(app, "shaders.glsl", "TEXTURED_GEOMETRY");
-            Program& texturedGeometryProgram = app->programs[app->texturedGeometryProgramIdx];
-
-            texturedGeometryProgram.uTexture = glGetUniformLocation(texturedGeometryProgram.handle, "uTexture");
-
-            // Texture
-            app->diceTexIdx = LoadTexture2D(app, "dice.png");
-            app->whiteTexIdx = LoadTexture2D(app, "color_white.png");
-            app->blackTexIdx = LoadTexture2D(app, "color_black.png");
-            app->normalTexIdx = LoadTexture2D(app, "color_normal.png");
-            app->magentaTexIdx = LoadTexture2D(app, "color_magenta.png");
-        }
-        break;
-    case Mode::TexturedMesh:
-        {
-            // Fill vertex input layout with required attributes
-            app->texturedMeshProgramIdx = LoadProgram(app, "shaders.glsl", "SHOW_TEXTURED_MESH");
-            Program& texturedMeshProgram = app->programs[app->texturedMeshProgramIdx];
-
-            app->patrickIdx = LoadModel(app, "Patrick/Patrick.obj");
-
-            glEnable(GL_DEPTH_TEST);
-        }
-        break;
-    default:;
-    }
+     glEnable(GL_DEPTH_TEST);
 }
 
 void Gui(App* app)
@@ -168,65 +110,34 @@ void Update(App* app)
 
 void Render(App* app)
 {
-    switch (app->mode)
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+    glViewport(0, 0, app->displaySize.x, app->displaySize.y);
+
+    for (u32 m = 0; m < app->models.size(); ++m)
     {
-        case Mode::TexturedQuad:
-            {
-                glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        Model& model = app->models[m];
 
-                glViewport(0, 0, app->displaySize.x, app->displaySize.y);
+        Program& program = app->programs[model.programIndex];
+        glUseProgram(program.handle);
 
-                Program& texturedGeometryProgram = app->programs[app->texturedGeometryProgramIdx];
-                glUseProgram(texturedGeometryProgram.handle);
-                glBindVertexArray(app->vao);
+        Mesh& mesh = app->meshes[model.meshIdx];
 
-                glEnable(GL_BLEND);
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        for (u32 i = 0; i < mesh.submeshes.size(); ++i)
+        {
+            GLuint vao = FindVAO(mesh, i, program);
+            glBindVertexArray(vao);
 
-                glUniform1i(texturedGeometryProgram.uTexture, 0);
-                glActiveTexture(GL_TEXTURE0);
-                GLuint textureHandle = app->textures[app->diceTexIdx].handle;
-                glBindTexture(GL_TEXTURE_2D, textureHandle);
+            u32 submeshMaterialIdx = model.materialIdx[i];
+            Material& submeshMaterial = app->materials[submeshMaterialIdx];
 
-                glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, app->textures[submeshMaterial.albedoTextureIdx].handle);
+            glUniform1i(program.uTexture, 0);
 
-                glBindVertexArray(0);
-                glUseProgram(0);
-            }
-            break;
-
-        case Mode::TexturedMesh:
-            {
-                glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-                glViewport(0, 0, app->displaySize.x, app->displaySize.y);
-
-                Program& texturedMeshProgram = app->programs[app->texturedMeshProgramIdx];
-                glUseProgram(texturedMeshProgram.handle);
-
-                Model& model = app->models[app->patrickIdx];
-                Mesh& mesh = app->meshes[model.meshIdx];
-
-                for (u32 i = 0; i < mesh.submeshes.size(); ++i)
-                {
-                    GLuint vao = FindVAO(mesh, i, texturedMeshProgram);
-                    glBindVertexArray(vao);
-
-                    u32 submeshMaterialIdx = model.materialIdx[i];
-                    Material& submeshMaterial = app->materials[submeshMaterialIdx];
-
-                    glActiveTexture(GL_TEXTURE0);
-                    glBindTexture(GL_TEXTURE_2D, app->textures[submeshMaterial.albedoTextureIdx].handle);
-                    glUniform1i(texturedMeshProgram.uTexture, 0);
-
-                    Submesh& submesh = mesh.submeshes[i];
-                    glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
-                }
-            }
-            break;
-
-        default:;
+            Submesh& submesh = mesh.submeshes[i];
+            glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
+        }
     }
 }

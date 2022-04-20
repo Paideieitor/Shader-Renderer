@@ -7,17 +7,10 @@
 #include "platform.h"
 #include <glad/glad.h>
 
-typedef glm::vec2 vec2;
-typedef glm::vec3 vec3;
-typedef glm::vec4 vec4;
-typedef glm::ivec2 ivec2;
-typedef glm::ivec3 ivec3;
-typedef glm::ivec4 ivec4;
-
 struct Image
 {
     void* pixels;
-    ivec2 size;
+    glm::ivec2 size;
     i32 nchannels;
     i32 stride;
 };
@@ -67,8 +60,8 @@ struct Texture
 struct Material
 {
     std::string name;
-    vec3 albedo;
-    vec3 emissive;
+    glm::vec3 albedo;
+    glm::vec3 emissive;
     f32 smoothness;
     u32 albedoTextureIdx;
     u32 emissiveTextureIdx;
@@ -99,6 +92,8 @@ struct Model
 {
     u32 meshIdx;
     std::vector<u32> materialIdx;
+
+    GLuint programIndex;
 };
 
 struct Program
@@ -114,9 +109,7 @@ struct Program
 
 enum class Mode
 {
-    TexturedQuad,
-    TexturedMesh,
-    Count
+    TexturedMesh
 };
 
 struct App
@@ -135,36 +128,24 @@ struct App
     GLubyte GLSLVersion[64];
     std::vector<GLubyte*> openGLExtensions;
 
-    ivec2 displaySize;
+    glm::ivec2 displaySize;
 
-    std::vector<Texture>  textures;
+    // Render data
+    std::vector<Texture> textures;
     std::vector<Material> materials;
     std::vector<Mesh> meshes;
     std::vector<Model> models;
-    std::vector<Program>  programs;
+    std::vector<Program> programs;
 
-    // program indices
-    u32 texturedGeometryProgramIdx;
-    u32 texturedMeshProgramIdx;
-    
-    // texture indices
-    u32 diceTexIdx;
-    u32 whiteTexIdx;
-    u32 blackTexIdx;
-    u32 normalTexIdx;
-    u32 magentaTexIdx;
-    u32 patrickIdx;
+    // Transforms
+    float aspectRatio;
+    float znear;
+    float zfar;
+    glm::mat4 projection;
+    glm::mat4 view;
 
     // Mode
     Mode mode;
-
-    // Embedded geometry (in-editor simple meshes such as
-    // a screen filling quad, a cube, a sphere...)
-    GLuint embeddedVertices;
-    GLuint embeddedElements;
-
-    // VAO object to link our screen filling quad with our textured quad shader
-    GLuint vao;
 };
 
 void Init(App* app);

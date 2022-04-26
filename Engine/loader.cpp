@@ -290,8 +290,8 @@ void ProcessAssimpMaterial(App* app, aiMaterial* material, Material& myMaterial,
     material->Get(AI_MATKEY_SHININESS, shininess);
 
     myMaterial.name = name.C_Str();
-    myMaterial.albedo = vec3(diffuseColor.r, diffuseColor.g, diffuseColor.b);
-    myMaterial.emissive = vec3(emissiveColor.r, emissiveColor.g, emissiveColor.b);
+    myMaterial.albedo = glm::vec3(diffuseColor.r, diffuseColor.g, diffuseColor.b);
+    myMaterial.emissive = glm::vec3(emissiveColor.r, emissiveColor.g, emissiveColor.b);
     myMaterial.smoothness = shininess / 256.0f;
 
     aiString aiFilename;

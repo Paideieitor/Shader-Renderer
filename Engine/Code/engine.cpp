@@ -61,6 +61,15 @@ void Init(App* app)
 {
     app->mode = Mode::TexturedMesh;
 
+    app->aspectRatio = (float)app->displaySize.x / (float)app->displaySize.y;
+    app->znear = 0.1f;
+    app->zfar = 1000.0f;
+    app->projection = glm::perspective(glm::radians(60.0f), app->aspectRatio, app->znear, app->zfar);
+    app->view = glm::lookAt(glm::vec3(0,0,2), glm::vec3(0,0,0), glm::vec3(0,1,0));
+
+    app->world = Transform(glm::vec3(2.5f, 1.5f, -2.0f), glm::vec3(0.45f)).GetTransform();
+    app->worldViewProjection = app->projection * app->view * app->world;
+
     // Saving openGL details
     memcpy(app->openGlVersion, glGetString(GL_VERSION), 64);
     memcpy(app->gpuName, glGetString(GL_RENDERER), 64);
@@ -82,6 +91,16 @@ void Init(App* app)
      LoadModel(app, "Patrick/Patrick.obj", programIdx);
 
      glEnable(GL_DEPTH_TEST);
+
+     // Get Uniform Buffer data
+     glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &app->maxUniformBufferSize);
+     glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &app->uniformBlockAlignment);
+
+     // Create Uniform Buffers
+     glGenBuffers(1, &app->bufferHandle);
+     glBindBuffer(GL_UNIFORM_BUFFER, app->bufferHandle);
+     glBufferData(GL_UNIFORM_BUFFER, app->maxUniformBufferSize, NULL, GL_STREAM_DRAW);
+     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
 void Gui(App* app)
@@ -110,11 +129,27 @@ void Update(App* app)
 
 void Render(App* app)
 {
+    // Set up render
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     glViewport(0, 0, app->displaySize.x, app->displaySize.y);
 
+    // Set Buffer handle
+    glBindBuffer(GL_UNIFORM_BUFFER, app->bufferHandle);
+    u8* bufferData = (u8*)glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
+    u32 bufferHead = 0;
+
+    memcpy(bufferData + bufferHead, glm::value_ptr(app->world), sizeof(glm::mat4));
+    bufferHead += sizeof(glm::mat4);
+
+    memcpy(bufferData + bufferHead, glm::value_ptr(app->worldViewProjection), sizeof(glm::mat4));
+    bufferHead += sizeof(glm::mat4);
+
+    glUnmapBuffer(GL_UNIFORM_BUFFER);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+    // Loop through meshes and render
     for (u32 m = 0; m < app->models.size(); ++m)
     {
         Model& model = app->models[m];
@@ -123,6 +158,9 @@ void Render(App* app)
         glUseProgram(program.handle);
 
         Mesh& mesh = app->meshes[model.meshIdx];
+
+        // Pass world position data to shader
+        //bind biffer range TODO
 
         for (u32 i = 0; i < mesh.submeshes.size(); ++i)
         {

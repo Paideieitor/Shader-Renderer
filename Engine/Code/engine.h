@@ -51,6 +51,22 @@ struct VAO
     GLuint programHandle;
 };
 
+struct Transform
+{
+    glm::vec3 position;
+    glm::vec3 scale;
+
+    Transform(const glm::vec3& position = glm::vec3(0,0,0), const glm::vec3& scale = glm::vec3(0, 0, 0)) : position(position), scale(scale) {}
+
+    glm::mat4 GetTransform()
+    {
+        glm::mat4 transform = glm::translate(position);
+        transform = glm::scale(transform, scale);
+
+        return transform;
+    }
+};
+
 struct Texture
 {
     GLuint handle;
@@ -86,6 +102,8 @@ struct Mesh
     std::vector<Submesh> submeshes;
     GLuint vertexBufferHandle;
     GLuint indexBufferHandle;
+
+    Transform transform;
 };
 
 struct Model
@@ -143,6 +161,14 @@ struct App
     float zfar;
     glm::mat4 projection;
     glm::mat4 view;
+
+    glm::mat4 world;
+    glm::mat4 worldViewProjection;
+
+    GLint maxUniformBufferSize;
+    GLint uniformBlockAlignment;
+
+    GLuint bufferHandle;
 
     // Mode
     Mode mode;

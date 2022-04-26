@@ -105,7 +105,7 @@ void OnGlfwCharEvent(GLFWwindow* window, unsigned int character)
 void OnGlfwResizeFramebuffer(GLFWwindow* window, int width, int height)
 {
     App* app = (App*)glfwGetWindowUserPointer(window);
-    app->displaySize = vec2(width, height);
+    app->displaySize = glm::vec2(width, height);
 }
 
 void OnGlfwCloseWindow(GLFWwindow* window)
@@ -118,7 +118,7 @@ int main()
 {
     App app         = {};
     app.deltaTime   = 1.0f/60.0f;
-    app.displaySize = ivec2(WINDOW_WIDTH, WINDOW_HEIGHT);
+    app.displaySize = glm::ivec2(WINDOW_WIDTH, WINDOW_HEIGHT);
     app.isRunning   = true;
 
 	glfwSetErrorCallback(OnGlfwError);

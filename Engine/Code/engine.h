@@ -7,6 +7,10 @@
 #include "platform.h"
 #include <glad/glad.h>
 
+#define BINDING(b) b
+
+#define IDENTITY4 glm::mat4(1)
+
 struct Image
 {
     void* pixels;
@@ -51,21 +55,9 @@ struct VAO
     GLuint programHandle;
 };
 
-struct Transform
-{
-    glm::vec3 position;
-    glm::vec3 scale;
-
-    Transform(const glm::vec3& position = glm::vec3(0,0,0), const glm::vec3& scale = glm::vec3(0, 0, 0)) : position(position), scale(scale) {}
-
-    glm::mat4 GetTransform()
-    {
-        glm::mat4 transform = glm::translate(position);
-        transform = glm::scale(transform, scale);
-
-        return transform;
-    }
-};
+glm::mat4 Translate(const glm::mat4& transform, const glm::vec3& position);
+glm::mat4 Scale(const glm::mat4& transform, const glm::vec3& scaleFactor);
+glm::mat4 Rotate(const glm::mat4& transform, const glm::vec3& rotation);
 
 struct Texture
 {
@@ -102,8 +94,6 @@ struct Mesh
     std::vector<Submesh> submeshes;
     GLuint vertexBufferHandle;
     GLuint indexBufferHandle;
-
-    Transform transform;
 };
 
 struct Model
@@ -123,6 +113,16 @@ struct Program
     u64 lastWriteTimestamp; // What is this for?
 
     VertexShaderLayout vetexInputLayout;
+};
+
+struct Entity
+{
+    u32 modelIdx;
+
+    glm::mat4 transform;
+
+    u32 uniformOffset;
+    u32 uniformSize;
 };
 
 enum class Mode
@@ -155,15 +155,18 @@ struct App
     std::vector<Model> models;
     std::vector<Program> programs;
 
+    std::vector<Entity> entities;
+    i32 selectedEntity;
+
     // Transforms
     float aspectRatio;
     float znear;
     float zfar;
     glm::mat4 projection;
-    glm::mat4 view;
 
-    glm::mat4 world;
-    glm::mat4 worldViewProjection;
+    glm::vec3 cameraPosition;
+    glm::vec3 cameraDirection;
+    glm::mat4 view;
 
     GLint maxUniformBufferSize;
     GLint uniformBlockAlignment;

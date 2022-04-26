@@ -6,6 +6,7 @@
 #if defined(VERTEX) ///////////////////////////////////////////////////
 
 layout(location = 0) in vec3 aPosition;
+layout(location = 1) in vec3 aNormal;
 layout(location = 2) in vec2 aTexCoord;
 
 layout(binding = 1, std140) uniform LocalParams
@@ -17,14 +18,14 @@ layout(binding = 1, std140) uniform LocalParams
 out vec2 vTexCoord;
 out vec3 vPosition;
 out vec3 vNormal;
-out vec3 vViewDir;
+//out vec3 vViewDir;
 
 void main()
 {
 	vTexCoord = aTexCoord;
 
-	vPosition = vec3(uWorldMatrix * vec4(vPosition, 1.0));
-	vNormal = vec3(uWorldMatrix * vec4(vNormal, 0.0));
+	vPosition = vec3(uWorldMatrix * vec4(aPosition, 1.0));
+	vNormal = vec3(uWorldMatrix * vec4(aNormal, 0.0));
 	gl_Position = uWorldViewProjectionMatrix * vec4(vPosition, 1.0);
 }
 
@@ -33,7 +34,7 @@ void main()
 in vec2 vTexCoord;
 in vec3 vPosition;
 in vec3 vNormal;
-in vec3 vViewDir;
+//in vec3 vViewDir;
 
 uniform sampler2D uTexture;
 

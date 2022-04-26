@@ -57,6 +57,37 @@ GLuint FindVAO(Mesh& mesh, u32 submeshIdx, const Program& program)
     return vaoHandle;
 }
 
+glm::mat4 Translate(const glm::mat4& transform, const glm::vec3& position)
+{
+    return glm::translate(transform, position);
+}
+
+glm::mat4 Scale(const glm::mat4& transform, const glm::vec3& scaleFactor)
+{
+    return glm::scale(transform, scaleFactor);
+}
+
+glm::mat4 Rotate(const glm::mat4& transform, const glm::vec3& rotation)
+{
+    glm::mat4 output = transform;
+
+    output = glm::rotate(output, rotation.x, glm::vec3(1, 0, 0));
+    output = glm::rotate(output, rotation.y, glm::vec3(0, 1, 0));
+    output = glm::rotate(output, rotation.z, glm::vec3(0, 0, 1));
+
+    return output;
+}
+
+void CreatePatrick(App* const app, u32 modelIdx, u32 programIdx, const glm::vec3& position, const glm::vec3& scaleFactor, const glm::vec3& rotation)
+{
+    app->entities.push_back(Entity());
+    Entity& entity = app->entities.back();
+
+    entity.modelIdx = modelIdx;
+
+    entity.transform = Rotate(Scale(Translate(IDENTITY4, position), scaleFactor), rotation);
+}
+
 void Init(App* app)
 {
     app->mode = Mode::TexturedMesh;
@@ -65,10 +96,12 @@ void Init(App* app)
     app->znear = 0.1f;
     app->zfar = 1000.0f;
     app->projection = glm::perspective(glm::radians(60.0f), app->aspectRatio, app->znear, app->zfar);
-    app->view = glm::lookAt(glm::vec3(0,0,2), glm::vec3(0,0,0), glm::vec3(0,1,0));
 
-    app->world = Transform(glm::vec3(2.5f, 1.5f, -2.0f), glm::vec3(0.45f)).GetTransform();
-    app->worldViewProjection = app->projection * app->view * app->world;
+    app->cameraPosition = glm::vec3(0, 0, 20);
+    app->cameraDirection = glm::normalize(glm::vec3(0) - app->cameraPosition);
+    app->view = glm::lookAt(app->cameraPosition, app->cameraDirection, glm::vec3(0,1,0));
+
+    app->selectedEntity = -1;
 
     // Saving openGL details
     memcpy(app->openGlVersion, glGetString(GL_VERSION), 64);
@@ -88,7 +121,11 @@ void Init(App* app)
      GLuint programIdx = LoadProgram(app, "shaders.glsl", "SHOW_TEXTURED_MESH");
      Program& texturedMeshProgram = app->programs[programIdx];
 
-     LoadModel(app, "Patrick/Patrick.obj", programIdx);
+     // Create entities
+     u32 modelIdx = LoadModel(app, "Patrick/Patrick.obj", programIdx);
+     CreatePatrick(app, modelIdx, programIdx, glm::vec3(0,0,0), glm::vec3(1,1,1), glm::vec3(0,0,0));
+     CreatePatrick(app, modelIdx, programIdx, glm::vec3(5, 0, 0), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+     CreatePatrick(app, modelIdx, programIdx, glm::vec3(-5, 0, 0), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
 
      glEnable(GL_DEPTH_TEST);
 
@@ -120,11 +157,83 @@ void Gui(App* app)
     ImGui::BulletText("FPS: %f", 1.0f/app->deltaTime);
 
     ImGui::End();
+
+    ImGui::Begin("Camera");
+
+    bool modified = false;
+
+    if (ImGui::DragFloat3("Position", (float*)&app->cameraPosition))
+        modified = true;
+    if (ImGui::DragFloat3("Direction", (float*)&app->cameraDirection, 0.1f))
+        modified = true;
+    if (ImGui::Button("Focus (0,0,0)"))
+    {
+        modified = true;
+        app->cameraDirection = glm::normalize(glm::vec3(0) - app->cameraPosition);
+    }
+
+    if (modified)
+        app->view = glm::lookAt(app->cameraPosition, app->cameraPosition + glm::normalize(app->cameraDirection), glm::vec3(0, 1, 0));
+
+    ImGui::End();
+
+    ImGui::Begin("Objects");
+
+    if (ImGui::Button("Deselect"))
+        app->selectedEntity = -1;
+    for (u32 i = 0; i < app->entities.size(); ++i)
+    {
+        std::string name = "Entity " + i;
+        if (ImGui::Button(name.c_str()))
+            app->selectedEntity = i;
+    }
+
+    ImGui::End();
+
+    ImGui::Begin("Inspector");
+
+    //if (app->selectedEntity >= 0)
+    //{
+    //    if (ImGui::DragFloat3("Position", (float*)&app->entities[app->selectedEntity].))
+    //        modified = true;
+    //    if (ImGui::DragFloat3("Direction", (float*)&app->cameraDirection, 0.1f))
+    //        modified = true;
+    //    if (ImGui::Button("Focus (0,0,0)"))
+    //    {
+    //        modified = true;
+    //        app->cameraDirection = glm::normalize(glm::vec3(0) - app->cameraPosition);
+    //    }
+    //
+    //    if (modified)
+    //        app->view = glm::lookAt(app->cameraPosition, app->cameraPosition + glm::normalize(app->cameraDirection), glm::vec3(0, 1, 0));
+    //}
+
+    ImGui::End();
 }
 
 void Update(App* app)
 {
-    // You can handle app->input keyboard/mouse here
+    // Set Uniform Buffer data
+    glBindBuffer(GL_UNIFORM_BUFFER, app->bufferHandle);
+    u8* bufferData = (u8*)glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
+    u32 bufferHead = 0;
+
+    for (u32 i = 0; i < app->entities.size(); ++i)
+    {
+        bufferHead = (bufferHead + app->uniformBlockAlignment - 1) & ~(app->uniformBlockAlignment - 1);
+
+        app->entities[i].uniformOffset = bufferHead;
+
+        memcpy(bufferData + bufferHead, glm::value_ptr(app->entities[i].transform), sizeof(glm::mat4));
+        bufferHead += sizeof(glm::mat4);
+        memcpy(bufferData + bufferHead, glm::value_ptr(app->projection * app->view * app->entities[i].transform), sizeof(glm::mat4));
+        bufferHead += sizeof(glm::mat4);
+
+        app->entities[i].uniformSize = bufferHead - app->entities[i].uniformOffset;
+    }
+
+    glUnmapBuffer(GL_UNIFORM_BUFFER);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
 void Render(App* app)
@@ -135,24 +244,12 @@ void Render(App* app)
     
     glViewport(0, 0, app->displaySize.x, app->displaySize.y);
 
-    // Set Buffer handle
-    glBindBuffer(GL_UNIFORM_BUFFER, app->bufferHandle);
-    u8* bufferData = (u8*)glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
-    u32 bufferHead = 0;
-
-    memcpy(bufferData + bufferHead, glm::value_ptr(app->world), sizeof(glm::mat4));
-    bufferHead += sizeof(glm::mat4);
-
-    memcpy(bufferData + bufferHead, glm::value_ptr(app->worldViewProjection), sizeof(glm::mat4));
-    bufferHead += sizeof(glm::mat4);
-
-    glUnmapBuffer(GL_UNIFORM_BUFFER);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-    // Loop through meshes and render
-    for (u32 m = 0; m < app->models.size(); ++m)
+    // Loop through entites and render
+    for (u32 e = 0; e < app->entities.size(); ++e)
     {
-        Model& model = app->models[m];
+        Entity& entity = app->entities[e];
+
+        Model& model = app->models[entity.modelIdx];
 
         Program& program = app->programs[model.programIndex];
         glUseProgram(program.handle);
@@ -160,7 +257,7 @@ void Render(App* app)
         Mesh& mesh = app->meshes[model.meshIdx];
 
         // Pass world position data to shader
-        //bind biffer range TODO
+        glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(1), app->bufferHandle, entity.uniformOffset, entity.uniformSize);
 
         for (u32 i = 0; i < mesh.submeshes.size(); ++i)
         {

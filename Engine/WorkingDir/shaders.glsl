@@ -26,10 +26,23 @@ void main()
 
 	vPosition = vec3(uWorldMatrix * vec4(aPosition, 1.0));
 	vNormal = vec3(uWorldMatrix * vec4(aNormal, 0.0));
-	gl_Position = uWorldViewProjectionMatrix * vec4(vPosition, 1.0);
+	gl_Position = uWorldViewProjectionMatrix * vec4(aPosition, 1.0);
 }
 
 #elif defined(FRAGMENT) ///////////////////////////////////////////////
+
+struct Light
+{
+    unsigned int type;
+    vec3 color;
+    vec3 position;
+    vec3 direction;
+};
+
+layout(binding = 0, std140) uniform GlobalParams
+{
+//TODO
+}
 
 in vec2 vTexCoord;
 in vec3 vPosition;

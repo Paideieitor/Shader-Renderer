@@ -8,7 +8,14 @@
 #include "engine.h"
 #include "loader.h"
 
+#include <glm/gtx/matrix_decompose.hpp>
+
 #include <imgui.h>
+
+u32 Allign(u32 value, GLint allignement)
+{
+    return (value + allignement - 1) & ~(allignement - 1);
+}
 
 GLuint FindVAO(Mesh& mesh, u32 submeshIdx, const Program& program)
 {
@@ -142,6 +149,7 @@ void Init(App* app)
 
 void Gui(App* app)
 {
+    return;
     ImGui::Begin("Info");
 
     ImGui::BulletText("OpenGL version: %s", app->openGlVersion);
@@ -154,7 +162,7 @@ void Gui(App* app)
             ImGui::Text("%s", app->openGLExtensions[i]);
         ImGui::TreePop();
     }
-    ImGui::BulletText("FPS: %f", 1.0f/app->deltaTime);
+    ImGui::BulletText("FPS: %f", 1.0f / app->deltaTime);
 
     ImGui::End();
 
@@ -183,8 +191,11 @@ void Gui(App* app)
         app->selectedEntity = -1;
     for (u32 i = 0; i < app->entities.size(); ++i)
     {
-        std::string name = "Entity " + i;
-        if (ImGui::Button(name.c_str()))
+        char name[16];
+        memcpy(name, "Entity ", 7);
+        _itoa(i, name + 7, 10);
+
+        if (ImGui::Button(name))
             app->selectedEntity = i;
     }
 
@@ -192,21 +203,20 @@ void Gui(App* app)
 
     ImGui::Begin("Inspector");
 
-    //if (app->selectedEntity >= 0)
-    //{
-    //    if (ImGui::DragFloat3("Position", (float*)&app->entities[app->selectedEntity].))
-    //        modified = true;
-    //    if (ImGui::DragFloat3("Direction", (float*)&app->cameraDirection, 0.1f))
-    //        modified = true;
-    //    if (ImGui::Button("Focus (0,0,0)"))
-    //    {
-    //        modified = true;
-    //        app->cameraDirection = glm::normalize(glm::vec3(0) - app->cameraPosition);
-    //    }
-    //
-    //    if (modified)
-    //        app->view = glm::lookAt(app->cameraPosition, app->cameraPosition + glm::normalize(app->cameraDirection), glm::vec3(0, 1, 0));
-    //}
+    if (app->selectedEntity >= 0)
+    {
+        Entity& entity = app->entities[app->selectedEntity];
+        glm::vec3 position(entity.transform[3]);
+
+        if (ImGui::DragFloat3("Position", (float*)&position), 0.1f)
+            entity.transform = Translate(entity.transform, position);
+
+        if (ImGui::Button("Focus Object"))
+        {
+            app->cameraDirection = glm::normalize(position - app->cameraPosition);
+            app->view = glm::lookAt(app->cameraPosition, app->cameraPosition + glm::normalize(app->cameraDirection), glm::vec3(0, 1, 0));
+        }
+    }
 
     ImGui::End();
 }
@@ -220,7 +230,7 @@ void Update(App* app)
 
     for (u32 i = 0; i < app->entities.size(); ++i)
     {
-        bufferHead = (bufferHead + app->uniformBlockAlignment - 1) & ~(app->uniformBlockAlignment - 1);
+        bufferHead = Allign(bufferHead, app->uniformBlockAlignment);
 
         app->entities[i].uniformOffset = bufferHead;
 

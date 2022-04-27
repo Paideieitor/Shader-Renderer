@@ -125,6 +125,14 @@ struct Entity
     u32 uniformSize;
 };
 
+//TODO//struct Light
+//TODO//{
+//TODO//    u32 type;
+//TODO//    glm::vec3 color;
+//TODO//    glm::vec3 position;
+//TODO//    glm::vec3 direction;
+//TODO//};
+
 enum class Mode
 {
     TexturedMesh

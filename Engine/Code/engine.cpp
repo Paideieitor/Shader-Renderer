@@ -12,11 +12,6 @@
 
 #include <imgui.h>
 
-u32 Allign(u32 value, GLint allignement)
-{
-    return (value + allignement - 1) & ~(allignement - 1);
-}
-
 GLuint FindVAO(Mesh& mesh, u32 submeshIdx, const Program& program)
 {
     Submesh& submesh = mesh.submeshes[submeshIdx];
@@ -64,6 +59,62 @@ GLuint FindVAO(Mesh& mesh, u32 submeshIdx, const Program& program)
     return vaoHandle;
 }
 
+bool IsPowerOf2(u32 value)
+{
+    return value && !(value & (value - 1));
+}
+
+u32 Align(u32 value, u32 alignment)
+{
+    return (value + alignment - 1) & ~(alignment - 1);
+}
+
+Buffer CreateBuffer(u32 size, GLenum type, GLenum usage)
+{
+    Buffer buffer = {};
+    buffer.size = size;
+    buffer.type = type;
+
+    glGenBuffers(1, &buffer.handle);
+    glBindBuffer(type, buffer.handle);
+    glBufferData(type, buffer.size, NULL, usage);
+    glBindBuffer(type, 0);
+
+    return buffer;
+}
+
+void BindBuffer(const Buffer& buffer)
+{
+    glBindBuffer(buffer.type, buffer.handle);
+}
+
+void MapBuffer(Buffer& buffer, GLenum access)
+{
+    glBindBuffer(buffer.type, buffer.handle);
+    buffer.data = (u8*)glMapBuffer(buffer.type, access);
+    buffer.head = 0;
+}
+
+void UnmapBuffer(Buffer& buffer)
+{
+    glUnmapBuffer(buffer.type);
+    glBindBuffer(buffer.type, 0);
+}
+
+void AlignHead(Buffer& buffer, u32 alignment)
+{
+    ASSERT(IsPowerOf2(alignment), "The alignment must be a power of 2");
+    buffer.head = Align(buffer.head, alignment);
+}
+
+void PushAlignedData(Buffer& buffer, const void* data, u32 size, u32 alignment)
+{
+    ASSERT(buffer.data != NULL, "The buffer must be mapped first");
+    AlignHead(buffer, alignment);
+    memcpy((u8*)buffer.data + buffer.head, data, size);
+    buffer.head += size;
+}
+
 glm::mat4 Translate(const glm::mat4& transform, const glm::vec3& position)
 {
     return glm::translate(transform, position);
@@ -85,7 +136,7 @@ glm::mat4 Rotate(const glm::mat4& transform, const glm::vec3& rotation)
     return output;
 }
 
-void CreatePatrick(App* const app, u32 modelIdx, u32 programIdx, const glm::vec3& position, const glm::vec3& scaleFactor, const glm::vec3& rotation)
+void CreateModel(App* const app, u32 modelIdx, u32 programIdx, const glm::vec3& position, const glm::vec3& scaleFactor, const glm::vec3& rotation)
 {
     app->entities.push_back(Entity());
     Entity& entity = app->entities.back();
@@ -93,6 +144,17 @@ void CreatePatrick(App* const app, u32 modelIdx, u32 programIdx, const glm::vec3
     entity.modelIdx = modelIdx;
 
     entity.transform = Rotate(Scale(Translate(IDENTITY4, position), scaleFactor), rotation);
+}
+
+void CreateLight(App* const app, const Light::Type& type, const glm::vec3& color, const glm::vec3& direction, const glm::vec3& position)
+{
+    app->lights.push_back(Light());
+    Light& light = app->lights.back();
+
+    light.type = type;
+    light.color = color;
+    light.direction = direction;
+    light.position = position;
 }
 
 void Init(App* app)
@@ -130,9 +192,15 @@ void Init(App* app)
 
      // Create entities
      u32 modelIdx = LoadModel(app, "Patrick/Patrick.obj", programIdx);
-     CreatePatrick(app, modelIdx, programIdx, glm::vec3(0,0,0), glm::vec3(1,1,1), glm::vec3(0,0,0));
-     CreatePatrick(app, modelIdx, programIdx, glm::vec3(5, 0, 0), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-     CreatePatrick(app, modelIdx, programIdx, glm::vec3(-5, 0, 0), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+     CreateModel(app, modelIdx, programIdx, glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+     CreateModel(app, modelIdx, programIdx, glm::vec3(5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+     CreateModel(app, modelIdx, programIdx, glm::vec3(-5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+     CreateModel(app, modelIdx, programIdx, glm::vec3(10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+     CreateModel(app, modelIdx, programIdx, glm::vec3(-10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+
+     // Create lights
+     CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(1, 1, 1), glm::vec3(1, 1, 1), glm::vec3(1, 1, 1));
+     CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(0, 0, 1), glm::vec3(-1, 1, 1), glm::vec3(1, 1, 1));
 
      glEnable(GL_DEPTH_TEST);
 
@@ -141,10 +209,7 @@ void Init(App* app)
      glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &app->uniformBlockAlignment);
 
      // Create Uniform Buffers
-     glGenBuffers(1, &app->bufferHandle);
-     glBindBuffer(GL_UNIFORM_BUFFER, app->bufferHandle);
-     glBufferData(GL_UNIFORM_BUFFER, app->maxUniformBufferSize, NULL, GL_STREAM_DRAW);
-     glBindBuffer(GL_UNIFORM_BUFFER, 0);
+     app->uniform = CreateConstantBuffer(app->maxUniformBufferSize);
 }
 
 void Gui(App* app)
@@ -223,27 +288,50 @@ void Gui(App* app)
 
 void Update(App* app)
 {
-    // Set Uniform Buffer data
-    glBindBuffer(GL_UNIFORM_BUFFER, app->bufferHandle);
-    u8* bufferData = (u8*)glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
-    u32 bufferHead = 0;
+    // Rotate Camera
 
+    u32 milliseconds = app->timeRunning * 1000;
+    u32 spinTime = 10 * 1000;
+    float alpha = 2.0f * PI * ((float)(milliseconds % spinTime) / spinTime);
+    app->cameraPosition = 25.0f * glm::vec3(cos(alpha), 0, sin(alpha));
+
+    app->cameraDirection = glm::normalize(glm::vec3(0) - app->cameraPosition);
+    app->view = glm::lookAt(app->cameraPosition, app->cameraPosition + glm::normalize(app->cameraDirection), glm::vec3(0, 1, 0));
+
+    // Set Uniform Buffer data
+    MapBuffer(app->uniform, GL_WRITE_ONLY);
+
+    // Set Global Parameters at the start
+    PushVec3(app->uniform, app->cameraPosition);
+    PushUInt(app->uniform, app->lights.size());
+    
+    for (u32 i = 0; i < app->lights.size(); ++i)
+    {
+        AlignHead(app->uniform, sizeof(glm::vec4));
+    
+        Light& light = app->lights[i];
+        PushUInt(app->uniform, light.type);
+        PushVec3(app->uniform, light.color);
+        PushVec3(app->uniform, light.direction);
+        PushVec3(app->uniform, light.position);
+    }
+    
+    app->globalsSize = app->uniform.head;
+
+    // Set Entities data
     for (u32 i = 0; i < app->entities.size(); ++i)
     {
-        bufferHead = Allign(bufferHead, app->uniformBlockAlignment);
+        AlignHead(app->uniform, app->uniformBlockAlignment);
 
-        app->entities[i].uniformOffset = bufferHead;
+        Entity& entity = app->entities[i];
 
-        memcpy(bufferData + bufferHead, glm::value_ptr(app->entities[i].transform), sizeof(glm::mat4));
-        bufferHead += sizeof(glm::mat4);
-        memcpy(bufferData + bufferHead, glm::value_ptr(app->projection * app->view * app->entities[i].transform), sizeof(glm::mat4));
-        bufferHead += sizeof(glm::mat4);
-
-        app->entities[i].uniformSize = bufferHead - app->entities[i].uniformOffset;
+        entity.uniformOffset = app->uniform.head;
+        PushMat4(app->uniform, entity.transform);
+        PushMat4(app->uniform, app->projection * app->view * entity.transform);
+        entity.uniformSize = app->uniform.head - app->entities[i].uniformOffset;
     }
 
-    glUnmapBuffer(GL_UNIFORM_BUFFER);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    UnmapBuffer(app->uniform);
 }
 
 void Render(App* app)
@@ -253,6 +341,9 @@ void Render(App* app)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     glViewport(0, 0, app->displaySize.x, app->displaySize.y);
+
+    // Pass global parameters data to shader
+    glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(0), app->uniform.handle, 0, app->globalsSize);
 
     // Loop through entites and render
     for (u32 e = 0; e < app->entities.size(); ++e)
@@ -266,8 +357,8 @@ void Render(App* app)
 
         Mesh& mesh = app->meshes[model.meshIdx];
 
-        // Pass world position data to shader
-        glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(1), app->bufferHandle, entity.uniformOffset, entity.uniformSize);
+        // Pass local parameters data to shader
+        glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(1), app->uniform.handle, entity.uniformOffset, entity.uniformSize);
 
         for (u32 i = 0; i < mesh.submeshes.size(); ++i)
         {

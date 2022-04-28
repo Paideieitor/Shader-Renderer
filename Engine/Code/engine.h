@@ -11,6 +11,42 @@
 
 #define IDENTITY4 glm::mat4(1)
 
+struct Buffer
+{
+    GLuint handle;
+    GLenum type;
+    u32 size;
+    u32 head;
+    void* data; // mapped data
+};
+
+bool IsPowerOf2(u32 value);
+
+u32 Align(u32 value, u32 alignment);
+
+Buffer CreateBuffer(u32 size, GLenum type, GLenum usage);
+
+#define CreateConstantBuffer(size) CreateBuffer(size, GL_UNIFORM_BUFFER, GL_STREAM_DRAW)
+#define CreateStaticVertexBuffer(size) CreateBuffer(size, GL_ARRAY_BUFFER, GL_STATIC_DRAW)
+#define CreateStaticIndexBuffer(size) CreateBuffer(size, GL_ELEMENT_ARRAY_BUFFER, GL_STATIC_DRAW)
+
+void BindBuffer(const Buffer& buffer);
+
+void MapBuffer(Buffer& buffer, GLenum access);
+
+void UnmapBuffer(Buffer& buffer);
+
+void AlignHead(Buffer& buffer, u32 alignment);
+
+void PushAlignedData(Buffer& buffer, const void* data, u32 size, u32 alignment);
+
+#define PushData(buffer, data, size) PushAlignedData(buffer, data, size, 1)
+#define PushUInt(buffer, value) { u32 v = value; PushAlignedData(buffer, &v, sizeof(v), 4); }
+#define PushVec3(buffer, value) PushAlignedData(buffer, glm::value_ptr(value), sizeof(value), sizeof(glm::vec4))
+#define PushVec4(buffer, value) PushAlignedData(buffer, glm::value_ptr(value), sizeof(value), sizeof(glm::vec4))
+#define PushMat3(buffer, value) PushAlignedData(buffer, glm::value_ptr(value), sizeof(value), sizeof(glm::vec4))
+#define PushMat4(buffer, value) PushAlignedData(buffer, glm::value_ptr(value), sizeof(value), sizeof(glm::vec4))
+
 struct Image
 {
     void* pixels;
@@ -125,13 +161,19 @@ struct Entity
     u32 uniformSize;
 };
 
-//TODO//struct Light
-//TODO//{
-//TODO//    u32 type;
-//TODO//    glm::vec3 color;
-//TODO//    glm::vec3 position;
-//TODO//    glm::vec3 direction;
-//TODO//};
+struct Light
+{
+    enum Type
+    {
+        DIRECTIONAL = 0,
+        POINT = 1
+    };
+
+    Type type;
+    glm::vec3 color;
+    glm::vec3 direction;
+    glm::vec3 position;
+};
 
 enum class Mode
 {
@@ -142,6 +184,7 @@ struct App
 {
     // Loop
     f32  deltaTime;
+    f32 timeRunning;
     bool isRunning;
     
     // Input
@@ -162,6 +205,7 @@ struct App
     std::vector<Mesh> meshes;
     std::vector<Model> models;
     std::vector<Program> programs;
+    std::vector<Light> lights;
 
     std::vector<Entity> entities;
     i32 selectedEntity;
@@ -179,7 +223,9 @@ struct App
     GLint maxUniformBufferSize;
     GLint uniformBlockAlignment;
 
-    GLuint bufferHandle;
+    Buffer uniform;
+
+    u32 globalsSize;
 
     // Mode
     Mode mode;

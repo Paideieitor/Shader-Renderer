@@ -220,12 +220,19 @@ struct App
     glm::vec3 cameraDirection;
     glm::mat4 view;
 
+    // Uniform Buffer
     GLint maxUniformBufferSize;
     GLint uniformBlockAlignment;
 
     Buffer uniform;
 
     u32 globalsSize;
+
+    // Frame Buffer
+    GLuint colorAttachmentHandle;
+    GLuint depthAttachmentHandle;
+
+    GLuint frameBufferHandle;
 
     // Mode
     Mode mode;

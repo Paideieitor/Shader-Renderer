@@ -12,6 +12,18 @@
 
 #include <imgui.h>
 
+const VertexV3V2 vetices[] = {
+    { glm::vec3(-0.5, -0.5, 0.0), glm::vec2(0.0, 0.0) },
+    { glm::vec3(0.5, -0.5, 0.0), glm::vec2(1.0, 0.0) },
+    { glm::vec3(0.5, 0.5, 0.0), glm::vec2(1.0, 1.0) },
+    { glm::vec3(-0.5, 0.5, 0.0), glm::vec2(0.0, 1.0) }
+};
+
+const u32 indices[] = {
+    0,1,2,
+    0,2,3
+};
+
 GLuint FindVAO(Mesh& mesh, u32 submeshIdx, const Program& program)
 {
     Submesh& submesh = mesh.submeshes[submeshIdx];
@@ -202,14 +214,63 @@ void Init(App* app)
      CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(1, 1, 1), glm::vec3(1, 1, 1), glm::vec3(1, 1, 1));
      CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(0, 0, 1), glm::vec3(-1, 1, 1), glm::vec3(1, 1, 1));
 
+     // Depth test
      glEnable(GL_DEPTH_TEST);
 
-     // Get Uniform Buffer data
+     // Create Uniform Buffer
      glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &app->maxUniformBufferSize);
      glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &app->uniformBlockAlignment);
 
-     // Create Uniform Buffers
      app->uniform = CreateConstantBuffer(app->maxUniformBufferSize);
+
+     // Frame buffer
+     app->colorAttachmentHandle;
+     glGenTextures(1, &app->colorAttachmentHandle);
+     glBindTexture(GL_TEXTURE_2D, app->colorAttachmentHandle);
+     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, app->displaySize.x, app->displaySize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+     glBindTexture(GL_TEXTURE_2D, 0);
+
+     app->depthAttachmentHandle;
+     glGenTextures(1, &app->depthAttachmentHandle);
+     glBindTexture(GL_TEXTURE_2D, app->depthAttachmentHandle);
+     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, app->displaySize.x, app->displaySize.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+     glBindTexture(GL_TEXTURE_2D, 0);
+
+     app->frameBufferHandle;
+     glGenFramebuffers(1, &app->frameBufferHandle);
+     glBindFramebuffer(GL_FRAMEBUFFER, app->frameBufferHandle);
+     glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, app->colorAttachmentHandle, 0);
+     glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, app->depthAttachmentHandle, 0);
+
+     GLenum frameBufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+     if (frameBufferStatus != GL_FRAMEBUFFER_COMPLETE)
+     {
+         switch (frameBufferStatus)
+         {
+         case GL_FRAMEBUFFER_UNDEFINED:                     ELOG("GL_FRAMEBUFFER_UNDEFINED"); break;
+         case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:         ELOG("GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT"); break;
+         case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT: ELOG("GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT"); break;
+         case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:        ELOG("GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER"); break;
+         case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:        ELOG("GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER"); break;
+         case GL_FRAMEBUFFER_UNSUPPORTED:                   ELOG("GL_FRAMEBUFFER_UNSUPPORTED"); break;
+         case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:        ELOG("GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE"); break;
+         case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:      ELOG("GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS"); break;
+         default: ELOG("Unknown frame buffer status error!");
+         }
+     }
+
+     glDrawBuffers(1, &app->colorAttachmentHandle);
+     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void Gui(App* app)
@@ -289,7 +350,6 @@ void Gui(App* app)
 void Update(App* app)
 {
     // Rotate Camera
-
     u32 milliseconds = app->timeRunning * 1000;
     u32 spinTime = 10 * 1000;
     float alpha = 2.0f * PI * ((float)(milliseconds % spinTime) / spinTime);
@@ -336,6 +396,11 @@ void Update(App* app)
 
 void Render(App* app)
 {
+    glBindFramebuffer(GL_FRAMEBUFFER, app->frameBufferHandle);
+
+    GLuint drawBuffers[] = { app->colorAttachmentHandle };
+    glDrawBuffers(ARRAY_COUNT(drawBuffers), drawBuffers);
+
     // Set up render
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -376,4 +441,6 @@ void Render(App* app)
             glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
         }
     }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }

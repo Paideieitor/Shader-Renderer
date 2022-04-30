@@ -12,18 +12,6 @@
 
 #include <imgui.h>
 
-const VertexV3V2 vetices[] = {
-    { glm::vec3(-0.5, -0.5, 0.0), glm::vec2(0.0, 0.0) },
-    { glm::vec3(0.5, -0.5, 0.0), glm::vec2(1.0, 0.0) },
-    { glm::vec3(0.5, 0.5, 0.0), glm::vec2(1.0, 1.0) },
-    { glm::vec3(-0.5, 0.5, 0.0), glm::vec2(0.0, 1.0) }
-};
-
-const u32 indices[] = {
-    0,1,2,
-    0,2,3
-};
-
 GLuint FindVAO(Mesh& mesh, u32 submeshIdx, const Program& program)
 {
     Submesh& submesh = mesh.submeshes[submeshIdx];
@@ -171,106 +159,133 @@ void CreateLight(App* const app, const Light::Type& type, const glm::vec3& color
 
 void Init(App* app)
 {
-    app->mode = Mode::TexturedMesh;
+    //app->mode = Mode::TexturedMesh;
+    //
+    //app->aspectRatio = (float)app->displaySize.x / (float)app->displaySize.y;
+    //app->znear = 0.1f;
+    //app->zfar = 1000.0f;
+    //app->projection = glm::perspective(glm::radians(60.0f), app->aspectRatio, app->znear, app->zfar);
+    //
+    //app->cameraPosition = glm::vec3(0, 0, 20);
+    //app->cameraDirection = glm::normalize(glm::vec3(0) - app->cameraPosition);
+    //app->view = glm::lookAt(app->cameraPosition, app->cameraDirection, glm::vec3(0,1,0));
+    //
+    //app->selectedEntity = -1;
+    //
+    //// Saving openGL details
+    //memcpy(app->openGlVersion, glGetString(GL_VERSION), 64);
+    //memcpy(app->gpuName, glGetString(GL_RENDERER), 64);
+    //memcpy(app->openGlVendor, glGetString(GL_VENDOR), 64);
+    //memcpy(app->GLSLVersion, glGetString(GL_SHADING_LANGUAGE_VERSION), 64);
+    //GLint extensionNum;
+    //glGetIntegerv(GL_NUM_EXTENSIONS, &extensionNum);
+    //for (int i = 0; i < extensionNum; ++i)
+    //{
+    //    GLubyte extension[64];
+    //    memcpy(extension, glGetStringi(GL_EXTENSIONS, GLuint(i)), 64);
+    //    app->openGLExtensions.push_back(extension);
+    //}
 
-    app->aspectRatio = (float)app->displaySize.x / (float)app->displaySize.y;
-    app->znear = 0.1f;
-    app->zfar = 1000.0f;
-    app->projection = glm::perspective(glm::radians(60.0f), app->aspectRatio, app->znear, app->zfar);
-
-    app->cameraPosition = glm::vec3(0, 0, 20);
-    app->cameraDirection = glm::normalize(glm::vec3(0) - app->cameraPosition);
-    app->view = glm::lookAt(app->cameraPosition, app->cameraDirection, glm::vec3(0,1,0));
-
-    app->selectedEntity = -1;
-
-    // Saving openGL details
-    memcpy(app->openGlVersion, glGetString(GL_VERSION), 64);
-    memcpy(app->gpuName, glGetString(GL_RENDERER), 64);
-    memcpy(app->openGlVendor, glGetString(GL_VENDOR), 64);
-    memcpy(app->GLSLVersion, glGetString(GL_SHADING_LANGUAGE_VERSION), 64);
-    GLint extensionNum;
-    glGetIntegerv(GL_NUM_EXTENSIONS, &extensionNum);
-    for (int i = 0; i < extensionNum; ++i)
-    {
-        GLubyte extension[64];
-        memcpy(extension, glGetStringi(GL_EXTENSIONS, GLuint(i)), 64);
-        app->openGLExtensions.push_back(extension);
-    }
-
-     // Fill vertex input layout with required attributes
-     GLuint programIdx = LoadProgram(app, "shaders.glsl", "SHOW_TEXTURED_MESH");
-     Program& texturedMeshProgram = app->programs[programIdx];
-
-     // Create entities
-     u32 modelIdx = LoadModel(app, "Patrick/Patrick.obj", programIdx);
-     CreateModel(app, modelIdx, programIdx, glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-     CreateModel(app, modelIdx, programIdx, glm::vec3(5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-     CreateModel(app, modelIdx, programIdx, glm::vec3(-5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-     CreateModel(app, modelIdx, programIdx, glm::vec3(10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-     CreateModel(app, modelIdx, programIdx, glm::vec3(-10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-
-     // Create lights
-     CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(1, 1, 1), glm::vec3(1, 1, 1), glm::vec3(1, 1, 1));
-     CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(0, 0, 1), glm::vec3(-1, 1, 1), glm::vec3(1, 1, 1));
-
-     // Depth test
-     glEnable(GL_DEPTH_TEST);
-
-     // Create Uniform Buffer
-     glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &app->maxUniformBufferSize);
-     glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &app->uniformBlockAlignment);
-
-     app->uniform = CreateConstantBuffer(app->maxUniformBufferSize);
-
-     // Frame buffer
-     app->colorAttachmentHandle;
-     glGenTextures(1, &app->colorAttachmentHandle);
-     glBindTexture(GL_TEXTURE_2D, app->colorAttachmentHandle);
-     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, app->displaySize.x, app->displaySize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-     glBindTexture(GL_TEXTURE_2D, 0);
-
-     app->depthAttachmentHandle;
-     glGenTextures(1, &app->depthAttachmentHandle);
-     glBindTexture(GL_TEXTURE_2D, app->depthAttachmentHandle);
-     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, app->displaySize.x, app->displaySize.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-     glBindTexture(GL_TEXTURE_2D, 0);
-
-     app->frameBufferHandle;
-     glGenFramebuffers(1, &app->frameBufferHandle);
-     glBindFramebuffer(GL_FRAMEBUFFER, app->frameBufferHandle);
-     glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, app->colorAttachmentHandle, 0);
-     glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, app->depthAttachmentHandle, 0);
-
-     GLenum frameBufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-     if (frameBufferStatus != GL_FRAMEBUFFER_COMPLETE)
-     {
-         switch (frameBufferStatus)
-         {
-         case GL_FRAMEBUFFER_UNDEFINED:                     ELOG("GL_FRAMEBUFFER_UNDEFINED"); break;
-         case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:         ELOG("GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT"); break;
-         case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT: ELOG("GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT"); break;
-         case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:        ELOG("GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER"); break;
-         case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:        ELOG("GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER"); break;
-         case GL_FRAMEBUFFER_UNSUPPORTED:                   ELOG("GL_FRAMEBUFFER_UNSUPPORTED"); break;
-         case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:        ELOG("GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE"); break;
-         case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:      ELOG("GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS"); break;
-         default: ELOG("Unknown frame buffer status error!");
-         }
-     }
-
-     glDrawBuffers(1, &app->colorAttachmentHandle);
-     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    //// Fill vertex input layout with required attributes
+    //GLuint programIdx = LoadProgram(app, "shaders.glsl", "TEXTURED_MESH");
+    //Program& texturedMeshProgram = app->programs[programIdx];
+    //
+    //// Create entities
+    //u32 modelIdx = LoadModel(app, "Patrick/Patrick.obj", programIdx);
+    //CreateModel(app, modelIdx, programIdx, glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    //CreateModel(app, modelIdx, programIdx, glm::vec3(5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    //CreateModel(app, modelIdx, programIdx, glm::vec3(-5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    //CreateModel(app, modelIdx, programIdx, glm::vec3(10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    //CreateModel(app, modelIdx, programIdx, glm::vec3(-10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    //
+    //// Create lights
+    //CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(1, 1, 1), glm::vec3(1, 1, 1), glm::vec3(1, 1, 1));
+    //CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(0, 0, 1), glm::vec3(-1, 1, 1), glm::vec3(1, 1, 1));
+    //
+    //// Depth test
+    //glEnable(GL_DEPTH_TEST);
+    
+    // Screen
+    glGenBuffers(1, &app->screen.verticesHandle);
+    glBindBuffer(GL_ARRAY_BUFFER, app->screen.verticesHandle);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(app->screen.vertices), app->screen.vertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    
+    glGenBuffers(1, &app->screen.indicesHandle);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, app->screen.indicesHandle);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(app->screen.indices), app->screen.indices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    
+    glGenVertexArrays(1, &app->screen.vao);
+    glBindVertexArray(app->screen.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, app->screen.verticesHandle);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexV3V2), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(VertexV3V2), (void*)12);
+    glEnableVertexAttribArray(1);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, app->screen.indicesHandle);
+    glBindVertexArray(0);
+    
+    app->screen.programIdx = LoadProgram(app, "shaders.glsl", "TEXTURE_TO_SCREEN");
+    Program& textureToScreenProgram = app->programs[app->screen.programIdx];
+    textureToScreenProgram.uTexture = glGetUniformLocation(textureToScreenProgram.handle, "uTexture");
+    
+    app->diceIdx = LoadTexture2D(app, "dice.png");
+    
+    //// Create Uniform Buffer
+    //glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &app->maxUniformBufferSize);
+    //glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &app->uniformBlockAlignment);
+    //
+    //app->uniform = CreateConstantBuffer(app->maxUniformBufferSize);
+    //
+    //// Frame buffer
+    //app->colorAttachmentHandle;
+    //glGenTextures(1, &app->colorAttachmentHandle);
+    //glBindTexture(GL_TEXTURE_2D, app->colorAttachmentHandle);
+    //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, app->displaySize.x, app->displaySize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    //glBindTexture(GL_TEXTURE_2D, 0);
+    //
+    ////app->depthAttachmentHandle;
+    ////glGenTextures(1, &app->depthAttachmentHandle);
+    ////glBindTexture(GL_TEXTURE_2D, app->depthAttachmentHandle);
+    ////glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, app->displaySize.x, app->displaySize.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    ////glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    ////glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    ////glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    ////glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    ////glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    ////glBindTexture(GL_TEXTURE_2D, 0);
+    //
+    //app->frameBufferHandle;
+    //glGenFramebuffers(1, &app->frameBufferHandle);
+    //glBindFramebuffer(GL_FRAMEBUFFER, app->frameBufferHandle);
+    //glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, app->colorAttachmentHandle, 0);
+    ////glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, app->depthAttachmentHandle, 0);
+    //
+    //GLenum frameBufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    //if (frameBufferStatus != GL_FRAMEBUFFER_COMPLETE)
+    //{
+    //    switch (frameBufferStatus)
+    //    {
+    //    case GL_FRAMEBUFFER_UNDEFINED:                     ELOG("GL_FRAMEBUFFER_UNDEFINED"); break;
+    //    case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:         ELOG("GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT"); break;
+    //    case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT: ELOG("GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT"); break;
+    //    case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:        ELOG("GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER"); break;
+    //    case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:        ELOG("GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER"); break;
+    //    case GL_FRAMEBUFFER_UNSUPPORTED:                   ELOG("GL_FRAMEBUFFER_UNSUPPORTED"); break;
+    //    case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:        ELOG("GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE"); break;
+    //    case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:      ELOG("GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS"); break;
+    //    default: ELOG("Unknown frame buffer status error!");
+    //    }
+    //}
+    //
+    //glDrawBuffers(1, &app->colorAttachmentHandle);
+    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void Gui(App* app)
@@ -349,18 +364,19 @@ void Gui(App* app)
 
 void Update(App* app)
 {
-    // Rotate Camera
+    return;
+    //Rotate Camera
     u32 milliseconds = app->timeRunning * 1000;
     u32 spinTime = 10 * 1000;
     float alpha = 2.0f * PI * ((float)(milliseconds % spinTime) / spinTime);
     app->cameraPosition = 25.0f * glm::vec3(cos(alpha), 0, sin(alpha));
-
+    
     app->cameraDirection = glm::normalize(glm::vec3(0) - app->cameraPosition);
     app->view = glm::lookAt(app->cameraPosition, app->cameraPosition + glm::normalize(app->cameraDirection), glm::vec3(0, 1, 0));
-
+    
     // Set Uniform Buffer data
     MapBuffer(app->uniform, GL_WRITE_ONLY);
-
+    
     // Set Global Parameters at the start
     PushVec3(app->uniform, app->cameraPosition);
     PushUInt(app->uniform, app->lights.size());
@@ -377,70 +393,92 @@ void Update(App* app)
     }
     
     app->globalsSize = app->uniform.head;
-
+    
     // Set Entities data
     for (u32 i = 0; i < app->entities.size(); ++i)
     {
         AlignHead(app->uniform, app->uniformBlockAlignment);
-
+    
         Entity& entity = app->entities[i];
-
+    
         entity.uniformOffset = app->uniform.head;
         PushMat4(app->uniform, entity.transform);
         PushMat4(app->uniform, app->projection * app->view * entity.transform);
         entity.uniformSize = app->uniform.head - app->entities[i].uniformOffset;
     }
-
+    
     UnmapBuffer(app->uniform);
 }
 
 void Render(App* app)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, app->frameBufferHandle);
+    //glBindFramebuffer(GL_FRAMEBUFFER, app->frameBufferHandle);
+    //
+    //GLuint drawBuffers[] = { app->colorAttachmentHandle };
+    //glDrawBuffers(ARRAY_COUNT(drawBuffers), drawBuffers);
+    //
+    //// Set up render
+    //glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //
+    //glViewport(0, 0, app->displaySize.x, app->displaySize.y);
+    //
+    //// Pass global parameters data to shader
+    //glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(0), app->uniform.handle, 0, app->globalsSize);
+    //
+    //// Loop through entites and render
+    //for (u32 e = 0; e < app->entities.size(); ++e)
+    //{
+    //    Entity& entity = app->entities[e];
+    //
+    //    Model& model = app->models[entity.modelIdx];
+    //
+    //    Program& program = app->programs[model.programIndex];
+    //    glUseProgram(program.handle);
+    //
+    //    Mesh& mesh = app->meshes[model.meshIdx];
+    //
+    //    // Pass local parameters data to shader
+    //    glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(1), app->uniform.handle, entity.uniformOffset, entity.uniformSize);
+    //
+    //    for (u32 i = 0; i < mesh.submeshes.size(); ++i)
+    //    {
+    //        GLuint vao = FindVAO(mesh, i, program);
+    //        glBindVertexArray(vao);
+    //
+    //        u32 submeshMaterialIdx = model.materialIdx[i];
+    //        Material& submeshMaterial = app->materials[submeshMaterialIdx];
+    //
+    //        glActiveTexture(GL_TEXTURE0);
+    //        glBindTexture(GL_TEXTURE_2D, app->textures[submeshMaterial.albedoTextureIdx].handle);
+    //        glUniform1i(program.uTexture, 0);
+    //
+    //        Submesh& submesh = mesh.submeshes[i];
+    //        glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
+    //    }
+    //}
+    //
+    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    GLuint drawBuffers[] = { app->colorAttachmentHandle };
-    glDrawBuffers(ARRAY_COUNT(drawBuffers), drawBuffers);
-
-    // Set up render
+    // Screen Render
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    
+
     glViewport(0, 0, app->displaySize.x, app->displaySize.y);
 
-    // Pass global parameters data to shader
-    glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(0), app->uniform.handle, 0, app->globalsSize);
+    Program& textureToScreenProgram = app->programs[app->screen.programIdx];
+    glUseProgram(textureToScreenProgram.handle);
+    glBindVertexArray(app->screen.vao);
 
-    // Loop through entites and render
-    for (u32 e = 0; e < app->entities.size(); ++e)
-    {
-        Entity& entity = app->entities[e];
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-        Model& model = app->models[entity.modelIdx];
+    glUniform1i(textureToScreenProgram.uTexture, 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, app->textures[app->diceIdx].handle);
 
-        Program& program = app->programs[model.programIndex];
-        glUseProgram(program.handle);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
 
-        Mesh& mesh = app->meshes[model.meshIdx];
-
-        // Pass local parameters data to shader
-        glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(1), app->uniform.handle, entity.uniformOffset, entity.uniformSize);
-
-        for (u32 i = 0; i < mesh.submeshes.size(); ++i)
-        {
-            GLuint vao = FindVAO(mesh, i, program);
-            glBindVertexArray(vao);
-
-            u32 submeshMaterialIdx = model.materialIdx[i];
-            Material& submeshMaterial = app->materials[submeshMaterialIdx];
-
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, app->textures[submeshMaterial.albedoTextureIdx].handle);
-            glUniform1i(program.uTexture, 0);
-
-            Submesh& submesh = mesh.submeshes[i];
-            glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
-        }
-    }
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindVertexArray(0);
+    glUseProgram(0);
 }

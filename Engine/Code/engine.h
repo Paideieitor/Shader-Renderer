@@ -151,6 +151,28 @@ struct Program
     VertexShaderLayout vetexInputLayout;
 };
 
+struct Screen
+{
+    const VertexV3V2 vertices[4] = 
+    {
+        { glm::vec3(-0.5, -0.5, 0.0), glm::vec2(0.0, 0.0) },
+        { glm::vec3(0.5, -0.5, 0.0), glm::vec2(1.0, 0.0) },
+        { glm::vec3(0.5, 0.5, 0.0), glm::vec2(1.0, 1.0) },
+        { glm::vec3(-0.5, 0.5, 0.0), glm::vec2(0.0, 1.0) }
+    };
+    const u32 indices[6] = 
+    {
+        0,1,2,
+        0,2,3
+    };
+
+    GLuint verticesHandle;
+    GLuint indicesHandle;
+    GLuint vao;
+
+    u32 programIdx;
+};
+
 struct Entity
 {
     u32 modelIdx;
@@ -230,9 +252,12 @@ struct App
 
     // Frame Buffer
     GLuint colorAttachmentHandle;
-    GLuint depthAttachmentHandle;
+    //GLuint depthAttachmentHandle;
 
     GLuint frameBufferHandle;
+
+    Screen screen;
+    GLuint diceIdx;
 
     // Mode
     Mode mode;

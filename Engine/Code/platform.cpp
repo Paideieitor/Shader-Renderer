@@ -106,6 +106,18 @@ void OnGlfwResizeFramebuffer(GLFWwindow* window, int width, int height)
 {
     App* app = (App*)glfwGetWindowUserPointer(window);
     app->displaySize = glm::vec2(width, height);
+
+    glBindTexture(GL_TEXTURE_2D, app->colorAttachmentHandle);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, app->displaySize.x, app->displaySize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glBindTexture(GL_TEXTURE_2D, app->albedoAttachmentHandle);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, app->displaySize.x, app->displaySize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glBindTexture(GL_TEXTURE_2D, app->normalsAttachmentHandle);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, app->displaySize.x, app->displaySize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glBindTexture(GL_TEXTURE_2D, app->positionsAttachmentHandle);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, app->displaySize.x, app->displaySize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+
+    glBindTexture(GL_TEXTURE_2D, app->depthAttachmentHandle);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, app->displaySize.x, app->displaySize.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 }
 
 void OnGlfwCloseWindow(GLFWwindow* window)

@@ -153,19 +153,6 @@ struct Program
 
 struct Screen
 {
-    const VertexV3V2 vertices[4] = 
-    {
-        { glm::vec3(-0.5, -0.5, 0.0), glm::vec2(0.0, 0.0) },
-        { glm::vec3(0.5, -0.5, 0.0), glm::vec2(1.0, 0.0) },
-        { glm::vec3(0.5, 0.5, 0.0), glm::vec2(1.0, 1.0) },
-        { glm::vec3(-0.5, 0.5, 0.0), glm::vec2(0.0, 1.0) }
-    };
-    const u32 indices[6] = 
-    {
-        0,1,2,
-        0,2,3
-    };
-
     GLuint verticesHandle;
     GLuint indicesHandle;
     GLuint vao;
@@ -199,7 +186,11 @@ struct Light
 
 enum class Mode
 {
-    TexturedMesh
+    COLOR,
+    ALBEDO,
+    NORMALS,
+    POSITIONS,
+    DEPTH
 };
 
 struct App
@@ -249,10 +240,13 @@ struct App
     Buffer uniform;
 
     u32 globalsSize;
-
+    
     // Frame Buffer
     GLuint colorAttachmentHandle;
-    //GLuint depthAttachmentHandle;
+    GLuint albedoAttachmentHandle;
+    GLuint normalsAttachmentHandle;
+    GLuint positionsAttachmentHandle;
+    GLuint depthAttachmentHandle;
 
     GLuint frameBufferHandle;
 

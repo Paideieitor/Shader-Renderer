@@ -59,11 +59,24 @@ layout(location = 0) out vec4 oColor;
 layout(location = 1) out vec4 oAlbedo;
 layout(location = 2) out vec4 oNormal;
 layout(location = 3) out vec4 oPosition;
+layout(location = 4) out vec4 oDepth;
+
+float near = 0.1; 
+float far  = 100.0; 
+  
+float LinearizeDepth(float depth) 
+{
+    float z = depth * 2.0 - 1.0; // back to NDC 
+    return (2.0 * near * far) / (far + near - z * (far - near));	
+}    
 
 void main()
 {
 	oNormal = vec4(vNormal, 1.0);
 	oPosition = vec4(vPosition, 1.0);
+
+	float depth = LinearizeDepth(gl_FragCoord.z) / far;
+	oDepth = vec4(vec3(depth), 1.0);
 
 	vec3 textureColor = texture(uTexture, vTexCoord).xyz;
 	oAlbedo = vec4(textureColor, 1.0);

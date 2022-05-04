@@ -146,6 +146,22 @@ void CreateModel(App* const app, u32 modelIdx, u32 programIdx, const glm::vec3& 
     entity.transform = Rotate(Scale(Translate(IDENTITY4, position), scaleFactor), rotation);
 }
 
+void CreatePlane(App* const app, u32 programIdx, const glm::vec3& position, const glm::vec3& scaleFactor, const glm::vec3& rotation)
+{
+    app->meshes.push_back(Mesh());
+    Mesh& mesh = app->meshes.back();
+    u32 meshIdx = (u32)app->meshes.size() - 1u;
+
+    mesh.submeshes.push_back(Submesh());
+    Submesh& submesh = mesh.submeshes.back();
+
+    app->models.push_back(Model());
+    Model& model = app->models.back();
+    u32 modelIdx = (u32)app->models.size() - 1u;
+
+    CreateModel(app, app->planeIdx, programIdx, position, scaleFactor, rotation);
+}
+
 void CreateLight(App* const app, const Light::Type& type, const glm::vec3& color, const glm::vec3& direction, const glm::vec3& position)
 {
     app->lights.push_back(Light());
@@ -170,19 +186,6 @@ void CreateColorAttachment(GLuint& handle, const glm::ivec2& displaySize)
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-const VertexV3V2 vertices[4] =
-{
-    { glm::vec3(-1.0, -1.0, 0.0), glm::vec2(0.0, 0.0) },
-    { glm::vec3(1.0, -1.0, 0.0), glm::vec2(1.0, 0.0) },
-    { glm::vec3(1.0, 1.0, 0.0), glm::vec2(1.0, 1.0) },
-    { glm::vec3(-1.0, 1.0, 0.0), glm::vec2(0.0, 1.0) }
-};
-const u16 indices[6] =
-{
-    0,1,2,
-    0,2,3
-};
-
 void Init(App* app)
 {
     app->mode = Mode::COLOR;
@@ -195,8 +198,6 @@ void Init(App* app)
     app->cameraPosition = glm::vec3(0, 0, 20);
     app->cameraDirection = glm::normalize(glm::vec3(0) - app->cameraPosition);
     app->view = glm::lookAt(app->cameraPosition, app->cameraDirection, glm::vec3(0,1,0));
-    
-    app->selectedEntity = -1;
     
     // Saving openGL details
     memcpy(app->openGlVersion, glGetString(GL_VERSION), 64);
@@ -231,12 +232,12 @@ void Init(App* app)
     // Screen
     glGenBuffers(1, &app->screen.verticesHandle);
     glBindBuffer(GL_ARRAY_BUFFER, app->screen.verticesHandle);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(app->screen.vertices), app->screen.vertices, GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     
     glGenBuffers(1, &app->screen.indicesHandle);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, app->screen.indicesHandle);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(app->screen.indices), app->screen.indices, GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);   
     
     glGenVertexArrays(1, &app->screen.vao);
@@ -275,8 +276,9 @@ void Init(App* app)
     // Positions
     CreateColorAttachment(app->positionsAttachmentHandle, app->displaySize);
     // Depth
-    glGenTextures(1, &app->depthAttachmentHandle);
-    glBindTexture(GL_TEXTURE_2D, app->depthAttachmentHandle);
+    CreateColorAttachment(app->depthAttachmentHandle, app->displaySize);
+    glGenTextures(1, &app->depthHandle);
+    glBindTexture(GL_TEXTURE_2D, app->depthHandle);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, app->displaySize.x, app->displaySize.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -292,7 +294,8 @@ void Init(App* app)
     glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, app->albedoAttachmentHandle, 0);
     glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, app->normalsAttachmentHandle, 0);
     glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, app->positionsAttachmentHandle, 0);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, app->depthAttachmentHandle, 0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, app->depthAttachmentHandle, 0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, app->depthHandle, 0);
     
     GLenum frameBufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (frameBufferStatus != GL_FRAMEBUFFER_COMPLETE)
@@ -311,7 +314,7 @@ void Init(App* app)
         }
     }
     
-    GLenum drawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
+    GLenum drawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4 };
     glDrawBuffers(ARRAY_COUNT(drawBuffers), drawBuffers);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -337,14 +340,37 @@ void Gui(App* app)
 
     if (ImGui::Button("COLOR"))
         app->mode = Mode::COLOR;
+    ImGui::SameLine();
     if (ImGui::Button("ALBEDO"))
         app->mode = Mode::ALBEDO;
+    ImGui::SameLine();
     if (ImGui::Button("NORMALS"))
         app->mode = Mode::NORMALS;
+    ImGui::SameLine();
     if (ImGui::Button("POSITIONS"))
         app->mode = Mode::POSITIONS;
+    ImGui::SameLine();
     if (ImGui::Button("DEPTH"))
         app->mode = Mode::DEPTH;
+
+    switch (app->mode)
+    {
+    case Mode::COLOR:
+        app->currentAttachmentHandle = app->colorAttachmentHandle;
+        break;
+    case Mode::ALBEDO:
+        app->currentAttachmentHandle = app->albedoAttachmentHandle;
+        break;
+    case Mode::NORMALS:
+        app->currentAttachmentHandle = app->normalsAttachmentHandle;
+        break;
+    case Mode::POSITIONS:
+        app->currentAttachmentHandle = app->positionsAttachmentHandle;
+        break;
+    case Mode::DEPTH:
+        app->currentAttachmentHandle = app->depthAttachmentHandle;
+        break;
+    }
 
     ImGui::End();
 }
@@ -356,10 +382,10 @@ void Update(App* app)
     u32 spinTime = 10 * 1000;
     float alpha = 2.0f * PI * ((float)(milliseconds % spinTime) / spinTime);
     app->cameraPosition = 25.0f * glm::vec3(cos(alpha), 0, sin(alpha));
-    
+
     app->cameraDirection = glm::normalize(glm::vec3(0) - app->cameraPosition);
     app->view = glm::lookAt(app->cameraPosition, app->cameraPosition + glm::normalize(app->cameraDirection), glm::vec3(0, 1, 0));
-    
+
     // Set Uniform Buffer data
     MapBuffer(app->uniform, GL_WRITE_ONLY);
     
@@ -398,10 +424,11 @@ void Update(App* app)
 
 void Render(App* app)
 {
+    // Geometry Pass
     glBindFramebuffer(GL_FRAMEBUFFER, app->frameBufferHandle);
     
     // Set up render
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     glViewport(0, 0, app->displaySize.x, app->displaySize.y);
@@ -442,8 +469,8 @@ void Render(App* app)
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    // Screen Render
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    // Lighting Pass
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     glViewport(0, 0, app->displaySize.x, app->displaySize.y);
@@ -458,26 +485,7 @@ void Render(App* app)
     glUniform1i(textureToScreenProgram.uTexture, 0);
     glActiveTexture(GL_TEXTURE0);
 
-    GLuint currentAttachmentHandle = GL_NONE;
-    switch (app->mode)
-    {
-    case Mode::COLOR:
-        currentAttachmentHandle = app->colorAttachmentHandle;
-        break;
-    case Mode::ALBEDO:
-        currentAttachmentHandle = app->albedoAttachmentHandle;
-        break;
-    case Mode::NORMALS:
-        currentAttachmentHandle = app->normalsAttachmentHandle;
-        break;
-    case Mode::POSITIONS:
-        currentAttachmentHandle = app->positionsAttachmentHandle;
-        break;
-    case Mode::DEPTH:
-        currentAttachmentHandle = app->depthAttachmentHandle;
-        break;
-    }
-    glBindTexture(GL_TEXTURE_2D, currentAttachmentHandle);
+    glBindTexture(GL_TEXTURE_2D, app->currentAttachmentHandle);
     
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
     

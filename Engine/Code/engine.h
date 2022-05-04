@@ -153,6 +153,19 @@ struct Program
 
 struct Screen
 {
+    const VertexV3V2 vertices[4] =
+    {
+        { glm::vec3(-1.0, -1.0, 0.0), glm::vec2(0.0, 0.0) },
+        { glm::vec3(1.0, -1.0, 0.0), glm::vec2(1.0, 0.0) },
+        { glm::vec3(1.0, 1.0, 0.0), glm::vec2(1.0, 1.0) },
+        { glm::vec3(-1.0, 1.0, 0.0), glm::vec2(0.0, 1.0) }
+    };
+    const u16 indices[6] =
+    {
+        0,1,2,
+        0,2,3
+    };
+
     GLuint verticesHandle;
     GLuint indicesHandle;
     GLuint vao;
@@ -221,7 +234,10 @@ struct App
     std::vector<Light> lights;
 
     std::vector<Entity> entities;
-    i32 selectedEntity;
+
+    // Primitives
+    Model plane;
+    u32 planeIdx;
 
     // Transforms
     float aspectRatio;
@@ -246,7 +262,9 @@ struct App
     GLuint albedoAttachmentHandle;
     GLuint normalsAttachmentHandle;
     GLuint positionsAttachmentHandle;
-    GLuint depthAttachmentHandle;
+    GLuint depthAttachmentHandle; // Depth Render Output
+    GLuint depthHandle; // Actual Depth Attachment (No render Madge)
+    GLuint currentAttachmentHandle;
 
     GLuint frameBufferHandle;
 

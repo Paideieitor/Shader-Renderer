@@ -136,7 +136,7 @@ glm::mat4 Rotate(const glm::mat4& transform, const glm::vec3& rotation)
     return output;
 }
 
-void CreateModel(App* const app, u32 modelIdx, u32 programIdx, const glm::vec3& position, const glm::vec3& scaleFactor, const glm::vec3& rotation)
+void CreateModel(App* const app, u32 modelIdx, const glm::vec3& position, const glm::vec3& scaleFactor, const glm::vec3& rotation)
 {
     app->entities.push_back(Entity());
     Entity& entity = app->entities.back();
@@ -146,11 +146,12 @@ void CreateModel(App* const app, u32 modelIdx, u32 programIdx, const glm::vec3& 
     entity.transform = Rotate(Scale(Translate(IDENTITY4, position), scaleFactor), rotation);
 }
 
-u32 BuildPlane(App* app)
+u32 BuildPlane(App* app, u32 programIdx)
 {
     app->models.push_back(Model());
     Model& model = app->models.back();
     u32 modelIdx = (u32)app->models.size() - 1u;
+    model.programIndex = programIdx;
 
     app->meshes.push_back(Mesh());
     Mesh& mesh = app->meshes.back();
@@ -167,7 +168,7 @@ u32 BuildPlane(App* app)
     submesh.vertices.insert(submesh.vertices.end(), { /*V*/-1, 0,  1, /*N*/0, 1, 0, /*TC*/0, 1, /*T*/0, 0, 0, /*B*/0, 0, 0 });
 
     submesh.indexOffset = 0;
-    submesh.indices.insert(submesh.indices.end(), { 0, 1, 2, 0, 2, 3 });
+    submesh.indices.insert(submesh.indices.end(), { 0, 2, 1, 0, 3, 2 });
 
     // Save attributes to be read
     submesh.vertexBufferLayout.attributes.push_back(VertexBufferAttribute{ 0, 3, 0 });
@@ -201,16 +202,16 @@ u32 BuildPlane(App* app)
     u32 indicesOffset = 0;
     u32 verticesOffset = 0;
 
-    const void* verticesData = submesh.vertices.data();
-    const u32   verticesSize = submesh.vertices.size() * sizeof(float);
+    const void* verticesData = mesh.submeshes[0].vertices.data();
+    const u32   verticesSize = mesh.submeshes[0].vertices.size() * sizeof(float);
     glBufferSubData(GL_ARRAY_BUFFER, verticesOffset, verticesSize, verticesData);
-    submesh.vertexOffset = verticesOffset;
+    mesh.submeshes[0].vertexOffset = verticesOffset;
     verticesOffset += verticesSize;
 
-    const void* indicesData = submesh.indices.data();
-    const u32   indicesSize = submesh.indices.size() * sizeof(u32);
+    const void* indicesData = mesh.submeshes[0].indices.data();
+    const u32   indicesSize = mesh.submeshes[0].indices.size() * sizeof(u32);
     glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, indicesOffset, indicesSize, indicesData);
-    submesh.indexOffset = indicesOffset;
+    mesh.submeshes[0].indexOffset = indicesOffset;
     indicesOffset += indicesSize;
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -223,16 +224,17 @@ u32 BuildPlane(App* app)
     Material& material = app->materials.back();
     material.name = "Plane";
     material.albedo = { 1,1,1 };
-    material.albedoTextureIdx = LoadTexture2D(app, "dice.png");
+    material.albedoTextureIdx = LoadTexture2D(app, "color_white.png");
 
     return modelIdx;
 }
 
-u32 BuildSphere(App* app)
+u32 BuildSphere(App* app, u32 programIdx)
 {
     app->models.push_back(Model());
     Model& model = app->models.back();
     u32 modelIdx = (u32)app->models.size() - 1u;
+    model.programIndex = programIdx;
 
     app->meshes.push_back(Mesh());
     Mesh& mesh = app->meshes.back();
@@ -261,7 +263,7 @@ u32 BuildSphere(App* app)
             sphere[h][v].pos.x = sinf(angleh) * cosf(anglev);
             sphere[h][v].pos.y = -sinf(anglev);
             sphere[h][v].pos.z = cosf(angleh) * cosf(anglev);
-            sphere[h][v].norm = glm::normalize(sphere[h][v].pos);
+            sphere[h][v].norm = sphere[h][v].pos;
 
             submesh.vertices.insert(submesh.vertices.end(), { /*V*/sphere[h][v].pos.x, sphere[h][v].pos.y, sphere[h][v].pos.z, 
                                                               /*N*/sphere[h][v].norm.x, sphere[h][v].norm.y, sphere[h][v].norm.z, 
@@ -318,16 +320,16 @@ u32 BuildSphere(App* app)
     u32 indicesOffset = 0;
     u32 verticesOffset = 0;
 
-    const void* verticesData = submesh.vertices.data();
-    const u32   verticesSize = submesh.vertices.size() * sizeof(float);
+    const void* verticesData = mesh.submeshes[0].vertices.data();
+    const u32   verticesSize = mesh.submeshes[0].vertices.size() * sizeof(float);
     glBufferSubData(GL_ARRAY_BUFFER, verticesOffset, verticesSize, verticesData);
-    submesh.vertexOffset = verticesOffset;
+    mesh.submeshes[0].vertexOffset = verticesOffset;
     verticesOffset += verticesSize;
 
-    const void* indicesData = submesh.indices.data();
-    const u32   indicesSize = submesh.indices.size() * sizeof(u32);
+    const void* indicesData = mesh.submeshes[0].indices.data();
+    const u32   indicesSize = mesh.submeshes[0].indices.size() * sizeof(u32);
     glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, indicesOffset, indicesSize, indicesData);
-    submesh.indexOffset = indicesOffset;
+    mesh.submeshes[0].indexOffset = indicesOffset;
     indicesOffset += indicesSize;
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -345,10 +347,10 @@ u32 BuildSphere(App* app)
     return modelIdx;
 }
 
-void BuildPrimitives(App* app)
+void BuildPrimitives(App* app, u32 programIdx)
 {
-    app->planeIdx = BuildPlane(app);
-    app->sphereIdx = BuildSphere(app);
+    app->planeIdx = BuildPlane(app, programIdx);
+    app->sphereIdx = BuildSphere(app, programIdx);
 }
 
 void CreateLight(App* const app, const Light::Type& type, const glm::vec3& color, const glm::vec3& direction, const glm::vec3& position)
@@ -377,8 +379,6 @@ void CreateColorAttachment(GLuint& handle, const glm::ivec2& displaySize)
 
 void Init(App* app)
 {
-    BuildPrimitives(app);
-        
     app->mode = Mode::COLOR;
     
     app->aspectRatio = (float)app->displaySize.x / (float)app->displaySize.y;
@@ -409,15 +409,17 @@ void Init(App* app)
     Program& texturedMeshProgram = app->programs[programIdx];
     
     // Create entities
+    BuildPrimitives(app, programIdx);
     u32 modelIdx = LoadModel(app, "Patrick/Patrick.obj", programIdx);
-    CreateModel(app, modelIdx, programIdx, glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateModel(app, modelIdx, programIdx, glm::vec3(5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateModel(app, modelIdx, programIdx, glm::vec3(-5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateModel(app, modelIdx, programIdx, glm::vec3(10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateModel(app, modelIdx, programIdx, glm::vec3(-10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
 
-    //CreateModel(app, app->planeIdx, programIdx, glm::vec3(0, -3.4, 0), glm::vec3(100, 100, 100), glm::vec3(0, 0, 0));
-    CreateModel(app, app->sphereIdx, programIdx, glm::vec3(0, -3.4, 0), glm::vec3(10, 10, 10), glm::vec3(0, 0, 0));
+    CreateModel(app, modelIdx, glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateModel(app, modelIdx, glm::vec3(5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateModel(app, modelIdx, glm::vec3(-5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateModel(app, modelIdx, glm::vec3(10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateModel(app, modelIdx, glm::vec3(-10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+
+    CreateModel(app, app->planeIdx, glm::vec3(0, -3.4, 0), glm::vec3(100), glm::vec3(0,0,0));
+    CreateModel(app, app->sphereIdx, glm::vec3(0, 3.2, 0), glm::vec3(1.4), glm::vec3(220, 234, 43));
     
     // Create lights
     CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(1, 1, 1), glm::vec3(1, 1, 1), glm::vec3(1, 1, 1));
@@ -459,8 +461,6 @@ void Init(App* app)
     app->uniform = CreateConstantBuffer(app->maxUniformBufferSize);
     
     // Frame buffer
-    // Color
-    CreateColorAttachment(app->colorAttachmentHandle, app->displaySize);
     // Albedo
     CreateColorAttachment(app->albedoAttachmentHandle, app->displaySize);
     // Normals
@@ -482,11 +482,10 @@ void Init(App* app)
     app->frameBufferHandle;
     glGenFramebuffers(1, &app->frameBufferHandle);
     glBindFramebuffer(GL_FRAMEBUFFER, app->frameBufferHandle);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, app->colorAttachmentHandle, 0);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, app->albedoAttachmentHandle, 0);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, app->normalsAttachmentHandle, 0);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, app->positionsAttachmentHandle, 0);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, app->depthAttachmentHandle, 0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, app->albedoAttachmentHandle, 0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, app->normalsAttachmentHandle, 0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, app->positionsAttachmentHandle, 0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, app->depthAttachmentHandle, 0);
     glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, app->depthHandle, 0);
     
     GLenum frameBufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
@@ -506,12 +505,13 @@ void Init(App* app)
         }
     }
     
-    GLenum drawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4 };
+    GLenum drawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
     glDrawBuffers(ARRAY_COUNT(drawBuffers), drawBuffers);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Depth test
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
 }
 
 void Gui(App* app)
@@ -545,10 +545,12 @@ void Gui(App* app)
     if (ImGui::Button("DEPTH"))
         app->mode = Mode::DEPTH;
 
+    ImGui::SliderAngle("camera", &app->alpha);
+
     switch (app->mode)
     {
     case Mode::COLOR:
-        app->currentAttachmentHandle = app->colorAttachmentHandle;
+        app->currentAttachmentHandle = app->albedoAttachmentHandle;
         break;
     case Mode::ALBEDO:
         app->currentAttachmentHandle = app->albedoAttachmentHandle;
@@ -570,10 +572,10 @@ void Gui(App* app)
 void Update(App* app)
 {
     //Rotate Camera
-    u32 milliseconds = app->timeRunning * 1000;
-    u32 spinTime = 10 * 1000;
-    float alpha = 2.0f * PI * ((float)(milliseconds % spinTime) / spinTime);
-    app->cameraPosition = 25.0f * glm::vec3(cos(alpha), 0, sin(alpha));
+    //u32 milliseconds = app->timeRunning * 1000;
+    //u32 spinTime = 10 * 1000;
+    //float alpha = 2.0f * PI * ((float)(milliseconds % spinTime) / spinTime);
+    app->cameraPosition = 25.0f * glm::vec3(cos(app->alpha), 0, sin(app->alpha));
 
     app->cameraDirection = glm::normalize(glm::vec3(0) - app->cameraPosition);
     app->view = glm::lookAt(app->cameraPosition, app->cameraPosition + glm::normalize(app->cameraDirection), glm::vec3(0, 1, 0));
@@ -583,18 +585,18 @@ void Update(App* app)
     
     // Set Global Parameters at the start
     PushVec3(app->uniform, app->cameraPosition);
-    PushUInt(app->uniform, app->lights.size());
-    
-    for (u32 i = 0; i < app->lights.size(); ++i)
-    {
-        AlignHead(app->uniform, sizeof(glm::vec4));
-    
-        Light& light = app->lights[i];
-        PushUInt(app->uniform, light.type);
-        PushVec3(app->uniform, light.color);
-        PushVec3(app->uniform, light.direction);
-        PushVec3(app->uniform, light.position);
-    }
+    //PushUInt(app->uniform, app->lights.size());
+    //
+    //for (u32 i = 0; i < app->lights.size(); ++i)
+    //{
+    //    AlignHead(app->uniform, sizeof(glm::vec4));
+    //
+    //    Light& light = app->lights[i];
+    //    PushUInt(app->uniform, light.type);
+    //    PushVec3(app->uniform, light.color);
+    //    PushVec3(app->uniform, light.direction);
+    //    PushVec3(app->uniform, light.position);
+    //}
     
     app->globalsSize = app->uniform.head;
     
@@ -620,7 +622,7 @@ void Render(App* app)
     glBindFramebuffer(GL_FRAMEBUFFER, app->frameBufferHandle);
     
     // Set up render
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     glViewport(0, 0, app->displaySize.x, app->displaySize.y);

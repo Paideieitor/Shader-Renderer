@@ -183,6 +183,16 @@ struct Entity
     u32 uniformSize;
 };
 
+struct LightEntity
+{
+    u32 lightlIdx;
+
+    glm::mat4 transform;
+
+    u32 uniformOffset;
+    u32 uniformSize;
+};
+
 struct Light
 {
     enum Type
@@ -208,6 +218,8 @@ enum class Mode
 
 struct App
 {
+    float alpha = PI / 2.0f;
+    float plSize = 1.0f;
     // Loop
     f32  deltaTime;
     f32 timeRunning;
@@ -258,7 +270,6 @@ struct App
     u32 globalsSize;
     
     // Frame Buffer
-    GLuint colorAttachmentHandle;
     GLuint albedoAttachmentHandle;
     GLuint normalsAttachmentHandle;
     GLuint positionsAttachmentHandle;

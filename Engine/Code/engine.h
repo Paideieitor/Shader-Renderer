@@ -236,8 +236,8 @@ struct App
     std::vector<Entity> entities;
 
     // Primitives
-    Model plane;
     u32 planeIdx;
+    u32 sphereIdx;
 
     // Transforms
     float aspectRatio;

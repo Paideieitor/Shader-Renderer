@@ -146,7 +146,7 @@ void CreateModel(App* const app, u32 modelIdx, u32 programIdx, const glm::vec3& 
     entity.transform = Rotate(Scale(Translate(IDENTITY4, position), scaleFactor), rotation);
 }
 
-void BuildPrimitives(App* app)
+u32 BuildPlane(App* app)
 {
     app->models.push_back(Model());
     Model& model = app->models.back();
@@ -206,12 +206,12 @@ void BuildPrimitives(App* app)
     glBufferSubData(GL_ARRAY_BUFFER, verticesOffset, verticesSize, verticesData);
     submesh.vertexOffset = verticesOffset;
     verticesOffset += verticesSize;
-    
+
     const void* indicesData = submesh.indices.data();
     const u32   indicesSize = submesh.indices.size() * sizeof(u32);
     glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, indicesOffset, indicesSize, indicesData);
     submesh.indexOffset = indicesOffset;
-    indicesOffset += indicesSize; 
+    indicesOffset += indicesSize;
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -221,10 +221,134 @@ void BuildPrimitives(App* app)
     model.materialIdx.push_back((u32)app->materials.size() - 1u);
 
     Material& material = app->materials.back();
-    material.name = "White";
+    material.name = "Plane";
+    material.albedo = { 1,1,1 };
+    material.albedoTextureIdx = LoadTexture2D(app, "dice.png");
+
+    return modelIdx;
+}
+
+u32 BuildSphere(App* app)
+{
+    app->models.push_back(Model());
+    Model& model = app->models.back();
+    u32 modelIdx = (u32)app->models.size() - 1u;
+
+    app->meshes.push_back(Mesh());
+    Mesh& mesh = app->meshes.back();
+    model.meshIdx = (u32)app->meshes.size() - 1u;
+
+    mesh.submeshes.push_back(Submesh());
+    Submesh& submesh = mesh.submeshes.back();
+
+    // Save vertex data
+    submesh.vertexOffset = 0;
+    submesh.indexOffset = 0;
+
+    const u32 H = 32;
+    const u32 V = 16;
+    struct Vertex { glm::vec3 pos; glm::vec3 norm; };
+    Vertex sphere[H][V + 1];
+
+    for (int h = 0; h < H; ++h)
+    {
+        for (int v = 0; v < V + 1; ++v)
+        {
+            float nh = float(h) / H;
+            float nv = float(v) / V - 0.5f;
+            float angleh = 2 * PI * nh;
+            float anglev = -PI * nv;
+            sphere[h][v].pos.x = sinf(angleh) * cosf(anglev);
+            sphere[h][v].pos.y = -sinf(anglev);
+            sphere[h][v].pos.z = cosf(angleh) * cosf(anglev);
+            sphere[h][v].norm = glm::normalize(sphere[h][v].pos);
+
+            submesh.vertices.insert(submesh.vertices.end(), { /*V*/sphere[h][v].pos.x, sphere[h][v].pos.y, sphere[h][v].pos.z, 
+                                                              /*N*/sphere[h][v].norm.x, sphere[h][v].norm.y, sphere[h][v].norm.z, 
+                                                              /*TC*/0, 0, /*T*/0, 0, 0, /*B*/0, 0, 0 });
+        }
+    }
+
+    u32 sphereIndices[H][V][6];
+    for (u32 h = 0; h < H; ++h)
+    {
+        for (u32 v = 0; v < V; ++v)
+        {
+            sphereIndices[h][v][0] = (h + 0) * (V + 1) + v;
+            sphereIndices[h][v][1] = ((h + 1) % H) * (V + 1) + v;
+            sphereIndices[h][v][2] = ((h + 1) % H) * (V + 1) + v + 1;
+            sphereIndices[h][v][3] = (h + 0) * (V + 1) + v;
+            sphereIndices[h][v][4] = ((h + 1) % H) * (V + 1) + v + 1;
+            sphereIndices[h][v][5] = (h + 0) * (V + 1) + v + 1;
+
+            submesh.indices.insert(submesh.indices.end(), { sphereIndices[h][v][0], sphereIndices[h][v][1], sphereIndices[h][v][2], 
+                                                            sphereIndices[h][v][3], sphereIndices[h][v][4], sphereIndices[h][v][5] });
+        }
+    }
+
+    // Save attributes to be read
+    submesh.vertexBufferLayout.attributes.push_back(VertexBufferAttribute{ 0, 3, 0 });
+    submesh.vertexBufferLayout.attributes.push_back(VertexBufferAttribute{ 1, 3, 3 * sizeof(float) });
+    submesh.vertexBufferLayout.stride = 6 * sizeof(float);
+
+    submesh.vertexBufferLayout.attributes.push_back(VertexBufferAttribute{ 2, 2, submesh.vertexBufferLayout.stride });
+    submesh.vertexBufferLayout.stride += 2 * sizeof(float);
+
+    submesh.vertexBufferLayout.attributes.push_back(VertexBufferAttribute{ 3, 3, submesh.vertexBufferLayout.stride });
+    submesh.vertexBufferLayout.stride += 3 * sizeof(float);
+
+    submesh.vertexBufferLayout.attributes.push_back(VertexBufferAttribute{ 4, 3, submesh.vertexBufferLayout.stride });
+    submesh.vertexBufferLayout.stride += 3 * sizeof(float);
+
+    // Create buffers
+    u32 vertexBufferSize = 0;
+    u32 indexBufferSize = 0;
+
+    vertexBufferSize += submesh.vertices.size() * sizeof(float);
+    indexBufferSize += submesh.indices.size() * sizeof(u32);
+
+    glGenBuffers(1, &mesh.vertexBufferHandle);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh.vertexBufferHandle);
+    glBufferData(GL_ARRAY_BUFFER, vertexBufferSize, NULL, GL_STATIC_DRAW);
+
+    glGenBuffers(1, &mesh.indexBufferHandle);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.indexBufferHandle);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexBufferSize, NULL, GL_STATIC_DRAW);
+
+    u32 indicesOffset = 0;
+    u32 verticesOffset = 0;
+
+    const void* verticesData = submesh.vertices.data();
+    const u32   verticesSize = submesh.vertices.size() * sizeof(float);
+    glBufferSubData(GL_ARRAY_BUFFER, verticesOffset, verticesSize, verticesData);
+    submesh.vertexOffset = verticesOffset;
+    verticesOffset += verticesSize;
+
+    const void* indicesData = submesh.indices.data();
+    const u32   indicesSize = submesh.indices.size() * sizeof(u32);
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, indicesOffset, indicesSize, indicesData);
+    submesh.indexOffset = indicesOffset;
+    indicesOffset += indicesSize;
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // Create Material
+    app->materials.push_back(Material{});
+    model.materialIdx.push_back((u32)app->materials.size() - 1u);
+
+    Material& material = app->materials.back();
+    material.name = "Sphere";
+    material.albedo = { 1,1,1 };
     material.albedoTextureIdx = LoadTexture2D(app, "color_white.png");
 
-    app->planeIdx = modelIdx;
+    return modelIdx;
+}
+
+void BuildPrimitives(App* app)
+{
+    app->planeIdx = BuildPlane(app);
+    app->sphereIdx = BuildSphere(app);
 }
 
 void CreateLight(App* const app, const Light::Type& type, const glm::vec3& color, const glm::vec3& direction, const glm::vec3& position)
@@ -292,7 +416,8 @@ void Init(App* app)
     CreateModel(app, modelIdx, programIdx, glm::vec3(10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
     CreateModel(app, modelIdx, programIdx, glm::vec3(-10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
 
-    CreateModel(app, app->planeIdx, programIdx, glm::vec3(0, -3.4, 0), glm::vec3(100, 100, 100), glm::vec3(0, 0, 0));
+    //CreateModel(app, app->planeIdx, programIdx, glm::vec3(0, -3.4, 0), glm::vec3(100, 100, 100), glm::vec3(0, 0, 0));
+    CreateModel(app, app->sphereIdx, programIdx, glm::vec3(0, -3.4, 0), glm::vec3(10, 10, 10), glm::vec3(0, 0, 0));
     
     // Create lights
     CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(1, 1, 1), glm::vec3(1, 1, 1), glm::vec3(1, 1, 1));

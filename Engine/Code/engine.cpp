@@ -163,7 +163,7 @@ u32 BuildScreen(App* app)
     submesh.vertexBufferLayout.attributes.push_back(VertexBufferAttribute{ 0, 3, 0 });
     submesh.vertexBufferLayout.stride = 3 * sizeof(float);
 
-    submesh.vertexBufferLayout.attributes.push_back(VertexBufferAttribute{ 2, 2, submesh.vertexBufferLayout.stride });
+    submesh.vertexBufferLayout.attributes.push_back(VertexBufferAttribute{ 1, 2, submesh.vertexBufferLayout.stride });
     submesh.vertexBufferLayout.stride += 2 * sizeof(float);
 
     // Create buffers
@@ -509,6 +509,11 @@ void Init(App* app)
     CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(1, 1, 1), glm::vec3(1, 1, 1), glm::vec3(1, 1, 1), 0);
     CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(0, 0, 1), glm::vec3(-1, 1, 1), glm::vec3(1, 1, 1), 0);
     CreateLight(app, Light::Type::POINT, glm::vec3(1, 0, 0), glm::vec3(0), glm::vec3(0, 0, 1), 10);
+
+    // Screen Shader
+    app->toScreenProgramIdx = LoadProgram(app, "shaders.glsl", "TO_SCREEN");
+    Program& toScreenProgram = app->programs[app->toScreenProgramIdx];
+    toScreenProgram.albedoLocation = glGetUniformLocation(toScreenProgram.handle, "uColor");
     
     // Create Uniform Buffer
     glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &app->maxUniformBufferSize);
@@ -753,45 +758,80 @@ void Render(App* app)
     
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
-    for (u32 i = 0; i < app->lights.size(); ++i)
-    {
-        Light& light = app->lights[i];
+    if (app->mode == Mode::COLOR)
+        for (u32 i = 0; i < app->lights.size(); ++i)
+        {
+            Light& light = app->lights[i];
 
-        Program& program = app->programs[light.programIdx];
+            Program& program = app->programs[light.programIdx];
+            glUseProgram(program.handle);
+
+            glUniform1i(program.albedoLocation, 0);
+            glUniform1i(program.normalsLocation, 1);
+            glUniform1i(program.positionLocation, 2);
+            glUniform1i(program.depthLocation, 3);
+
+            glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(1), app->uniform.handle, light.uniformOffset, light.uniformSize);
+
+            u32 modelIdx = 0;
+            switch (light.type)
+            {
+            case Light::Type::DIRECTIONAL:
+                modelIdx = app->screenIdx;
+                glDisable(GL_DEPTH_TEST);
+                break;
+            case Light::Type::POINT:
+                modelIdx = app->sphereIdx;
+                glEnable(GL_DEPTH_TEST);
+                break;
+            }
+
+            Mesh& mesh = app->meshes[app->models[modelIdx].meshIdx];
+            GLuint vao = FindVAO(mesh, 0, program);
+            glBindVertexArray(vao);
+
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, app->albedoAttachmentHandle);
+            glActiveTexture(GL_TEXTURE0 + 1);
+            glBindTexture(GL_TEXTURE_2D, app->normalsAttachmentHandle);
+            glActiveTexture(GL_TEXTURE0 + 2);
+            glBindTexture(GL_TEXTURE_2D, app->positionsAttachmentHandle);
+            glActiveTexture(GL_TEXTURE0 + 3);
+            glBindTexture(GL_TEXTURE_2D, app->depthAttachmentHandle);
+
+            Submesh& submesh = mesh.submeshes[0];
+            glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
+
+            glBindVertexArray(0);
+            glUseProgram(0);
+        }
+    else
+    {
+        Program& program = app->programs[app->toScreenProgramIdx];
         glUseProgram(program.handle);
 
         glUniform1i(program.albedoLocation, 0);
-        glUniform1i(program.normalsLocation, 1);
-        glUniform1i(program.positionLocation, 2);
-        glUniform1i(program.depthLocation, 3);
 
-        glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(1), app->uniform.handle, light.uniformOffset, light.uniformSize);
-
-        u32 modelIdx = 0;
-        switch (light.type)
-        {
-        case Light::Type::DIRECTIONAL:
-            modelIdx = app->screenIdx;
-            glDisable(GL_DEPTH_TEST);
-            break;
-        case Light::Type::POINT:
-            modelIdx = app->sphereIdx;
-            glEnable(GL_DEPTH_TEST);
-            break;
-        }
-
-        Mesh& mesh = app->meshes[app->models[modelIdx].meshIdx];
+        Mesh& mesh = app->meshes[app->models[app->screenIdx].meshIdx];
         GLuint vao = FindVAO(mesh, 0, program);
         glBindVertexArray(vao);
 
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, app->albedoAttachmentHandle);
-        glActiveTexture(GL_TEXTURE0 + 1);
-        glBindTexture(GL_TEXTURE_2D, app->normalsAttachmentHandle);
-        glActiveTexture(GL_TEXTURE0 + 2);
-        glBindTexture(GL_TEXTURE_2D, app->positionsAttachmentHandle);
-        glActiveTexture(GL_TEXTURE0 + 3);
-        glBindTexture(GL_TEXTURE_2D, app->depthAttachmentHandle);
+        switch (app->mode)
+        {
+        case Mode::ALBEDO:
+            glBindTexture(GL_TEXTURE_2D, app->albedoAttachmentHandle);
+            break;
+        case Mode::NORMALS:
+            glBindTexture(GL_TEXTURE_2D, app->normalsAttachmentHandle);
+            break;
+        case Mode::POSITIONS:
+            glBindTexture(GL_TEXTURE_2D, app->positionsAttachmentHandle);
+            break;
+        case Mode::DEPTH:
+            glBindTexture(GL_TEXTURE_2D, app->depthAttachmentHandle);
+            break;
+        }
 
         Submesh& submesh = mesh.submeshes[0];
         glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
@@ -799,4 +839,6 @@ void Render(App* app)
         glBindVertexArray(0);
         glUseProgram(0);
     }
+
+    glBindTexture(GL_TEXTURE_2D, 0);
 }

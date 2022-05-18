@@ -288,6 +288,7 @@ struct App
     // Deferred Shading
     u32 directionalProgramIdx;
     u32 pointProgramIdx;
+    u32 toScreenProgramIdx;
 
     // Mode
     Mode mode;

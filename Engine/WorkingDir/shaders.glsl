@@ -7,21 +7,22 @@
 layout(binding = 0, std140) uniform GlobalParams
 {
 	vec3 uCameraPosition;
+	vec3 uResolution;
 };
 
 #if defined(VERTEX) ///////////////////////////////////////////////////
-
-layout(location = 0) in vec3 aPosition;
-layout(location = 1) in vec3 aNormal;
-layout(location = 2) in vec2 aTexCoord;
-layout(location = 3) in vec3 aTangent;
-layout(location = 4) in vec3 aBitangent;
 
 layout(binding = 1, std140) uniform LocalParams
 {
 	mat4 uWorldMatrix;
 	mat4 uWorldViewProjectionMatrix;
 };
+
+layout(location = 0) in vec3 aPosition;
+layout(location = 1) in vec3 aNormal;
+layout(location = 2) in vec2 aTexCoord;
+layout(location = 3) in vec3 aTangent;
+layout(location = 4) in vec3 aBitangent;
 
 out vec2 vTexCoord;
 out vec3 vPosition;
@@ -45,7 +46,7 @@ in vec3 vPosition;
 in vec3 vNormal;
 in vec3 vViewDir;
 
-uniform sampler2D uTexture;
+uniform sampler2D uAlbedo;
 
 layout(location = 0) out vec4 oAlbedo;
 layout(location = 1) out vec4 oNormal;
@@ -69,7 +70,7 @@ void main()
 	float depth = LinearizeDepth(gl_FragCoord.z) / far;
 	oDepth = vec4(vec3(depth), 1.0);
 
-	oAlbedo = texture(uTexture, vTexCoord);
+	oAlbedo = texture(uAlbedo, vTexCoord);
 }
 
 #endif
@@ -79,32 +80,52 @@ void main()
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
-#ifdef TEXTURE_TO_SCREEN
+#ifdef DIRECTIONAL_LIGHT
+
+layout(binding = 0, std140) uniform GlobalParams
+{
+	vec3 uCameraPosition;
+	vec3 uResolution;
+};
 
 #if defined(VERTEX) ///////////////////////////////////////////////////
 
 layout(location = 0) in vec3 aPosition;
-layout(location = 1) in vec2 aTexCoord;
+layout(location = 2) in vec2 aTexCoord;
 
 out vec2 vTexCoord;
 
 void main()
 {
 	vTexCoord = aTexCoord;
+
 	gl_Position = vec4(aPosition, 1.0);
 }
 
 #elif defined(FRAGMENT) ///////////////////////////////////////////////
 
+layout(binding = 1, std140) uniform LocalParams
+{
+	vec3 uColor;
+	vec3 uDirection;
+};
+
 in vec2 vTexCoord;
 
-uniform sampler2D uTexture;
+uniform sampler2D uAlbedo;
+uniform sampler2D uNormals;
+uniform sampler2D uPosition;
+uniform sampler2D uDepth;
 
 layout(location = 0) out vec4 oColor;
 
 void main()
 {
-	oColor = texture(uTexture, vTexCoord);
+	vec3 albedo = texture(uAlbedo, vTexCoord).xyz;
+	vec3 normal = texture(uNormals, vTexCoord).xyz;
+	vec3 diffuse = uColor * mix(vec3(0), albedo, dot(normal, uDirection)) * 0.7;
+
+	oColor = vec4(diffuse, 1.0);
 }
 
 #endif

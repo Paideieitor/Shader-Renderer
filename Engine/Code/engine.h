@@ -42,6 +42,7 @@ void PushAlignedData(Buffer& buffer, const void* data, u32 size, u32 alignment);
 
 #define PushData(buffer, data, size) PushAlignedData(buffer, data, size, 1)
 #define PushUInt(buffer, value) { u32 v = value; PushAlignedData(buffer, &v, sizeof(v), 4); }
+#define PushFloat(buffer, value) { f32 v = value; PushAlignedData(buffer, &v, sizeof(v), 4); }
 #define PushVec3(buffer, value) PushAlignedData(buffer, glm::value_ptr(value), sizeof(value), sizeof(glm::vec4))
 #define PushVec4(buffer, value) PushAlignedData(buffer, glm::value_ptr(value), sizeof(value), sizeof(glm::vec4))
 #define PushMat3(buffer, value) PushAlignedData(buffer, glm::value_ptr(value), sizeof(value), sizeof(glm::vec4))
@@ -136,14 +137,17 @@ struct Model
 {
     u32 meshIdx;
     std::vector<u32> materialIdx;
-
-    GLuint programIndex;
 };
 
 struct Program
 {
     GLuint handle;
-    GLuint uTexture;
+
+    GLint albedoLocation;
+    GLint normalsLocation;
+    GLint positionLocation;
+    GLint depthLocation;
+
     std::string filepath;
     std::string programName;
     u64 lastWriteTimestamp; // What is this for?
@@ -176,16 +180,7 @@ struct Screen
 struct Entity
 {
     u32 modelIdx;
-
-    glm::mat4 transform;
-
-    u32 uniformOffset;
-    u32 uniformSize;
-};
-
-struct LightEntity
-{
-    u32 lightlIdx;
+    GLuint programIdx;
 
     glm::mat4 transform;
 
@@ -204,7 +199,14 @@ struct Light
     Type type;
     glm::vec3 color;
     glm::vec3 direction;
-    glm::vec3 position;
+
+    u32 programIdx;
+
+    glm::mat4 transform;
+    f32 range;
+
+    u32 uniformOffset;
+    u32 uniformSize;
 };
 
 enum class Mode
@@ -248,8 +250,11 @@ struct App
     std::vector<Entity> entities;
 
     // Primitives
+    u32 defaultTextureIdx;
+
     u32 planeIdx;
     u32 sphereIdx;
+    u32 screenIdx;
 
     // Transforms
     float aspectRatio;
@@ -279,8 +284,9 @@ struct App
 
     GLuint frameBufferHandle;
 
-    Screen screen;
-    GLuint diceIdx;
+    // Deferred Shading
+    u32 directionalProgramIdx;
+    u32 pointProgramIdx;
 
     // Mode
     Mode mode;

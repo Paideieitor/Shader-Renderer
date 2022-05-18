@@ -9,7 +9,7 @@
 
 #define BINDING(b) b
 
-#define IDENTITY4 glm::mat4(1)
+#define IDENTITY4 glm::mat4(1.0f)
 
 struct Buffer
 {
@@ -199,11 +199,12 @@ struct Light
     Type type;
     glm::vec3 color;
     glm::vec3 direction;
+    glm::vec3 center;
+    f32 range;
 
     u32 programIdx;
 
     glm::mat4 transform;
-    f32 range;
 
     u32 uniformOffset;
     u32 uniformSize;

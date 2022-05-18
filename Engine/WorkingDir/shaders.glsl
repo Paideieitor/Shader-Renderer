@@ -116,6 +116,7 @@ uniform sampler2D uAlbedo;
 uniform sampler2D uNormals;
 uniform sampler2D uPosition;
 uniform sampler2D uDepth;
+uniform sampler2D uTrueDepth;
 
 layout(location = 0) out vec4 oColor;
 
@@ -126,6 +127,90 @@ void main()
 	vec3 diffuse = uColor * mix(vec3(0), albedo, dot(normal, uDirection)) * 0.7;
 
 	oColor = vec4(diffuse, 1.0);
+}
+
+#endif
+#endif
+
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+
+#ifdef POINT_LIGHT
+
+layout(binding = 0, std140) uniform GlobalParams
+{
+	vec3 uCameraPosition;
+	vec3 uResolution;
+};
+
+layout(binding = 1, std140) uniform LocalParams
+{
+	vec3 uColor;
+	vec3 uCenter;
+	float uRange;
+
+	mat4 uWorldMatrix;
+	mat4 uWorldViewProjectionMatrix;
+};
+
+#if defined(VERTEX) ///////////////////////////////////////////////////
+
+layout(location = 0) in vec3 aPosition;
+layout(location = 1) in vec3 aNormal;
+layout(location = 2) in vec2 aTexCoord;
+layout(location = 3) in vec3 aTangent;
+layout(location = 4) in vec3 aBitangent;
+
+out vec3 vPosition;
+
+void main()
+{
+	vPosition = vec3(uWorldMatrix * vec4(aPosition, 1.0));
+	gl_Position = uWorldViewProjectionMatrix * vec4(aPosition, 1.0);
+}
+
+#elif defined(FRAGMENT) ///////////////////////////////////////////////
+
+uniform sampler2D uAlbedo;
+uniform sampler2D uNormals;
+uniform sampler2D uPosition;
+uniform sampler2D uDepth;
+
+layout(location = 0) out vec4 oColor;
+
+in vec3 vPosition;
+
+float near = 0.1; 
+float far  = 100.0; 
+  
+float LinearizeDepth(float depth) 
+{
+    float z = depth * 2.0 - 1.0; // back to NDC 
+    return (2.0 * near * far) / (far + near - z * (far - near));	
+}  
+
+void main()
+{
+	vec2 texcoord = vec2(gl_FragCoord.x / uResolution.x, gl_FragCoord.y / uResolution.y);
+	vec3 albedo = texture(uAlbedo, texcoord).xyz;
+	vec3 normal = texture(uNormals, texcoord).xyz;
+	vec3 position = texture(uPosition, texcoord).xyz;
+
+	float depth = texture(uDepth, texcoord).x;
+	float vDepth = LinearizeDepth(gl_FragCoord.z) / far;
+
+	vec3 direction = uCenter - position;
+	float dist = length(direction);
+	if (vDepth < depth && dist < uRange && depth > 0.0)
+	{
+		direction = normalize(direction);
+		vec3 diffuse = uColor * (mix(vec3(0), albedo, dot(normal, direction)) * 0.7) * (1 - dist / uRange);
+
+		oColor = vec4(diffuse,1);
+	}
+	else
+		oColor = vec4(0,0,0,0);
 }
 
 #endif

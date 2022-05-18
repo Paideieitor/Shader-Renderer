@@ -292,8 +292,8 @@ u32 BuildSphere(App* app)
     submesh.vertexOffset = 0;
     submesh.indexOffset = 0;
 
-    const u32 H = 32;
-    const u32 V = 16;
+    const u32 H = 64;
+    const u32 V = 32;
     struct Vertex { glm::vec3 pos; glm::vec3 norm; };
     Vertex sphere[H][V + 1];
 
@@ -420,9 +420,11 @@ u32 CreateLight(App* const app, const Light::Type& type, const glm::vec3& color,
     }
     light.color = color;
     light.direction = direction;
-    light.transform = Scale(Translate(IDENTITY4, position), glm::vec3(range));
+    light.center = position;
     light.range = range;
 
+    light.transform = Scale(Translate(IDENTITY4, position), glm::vec3(range));
+    
     return app->lights.size() - 1u;
 }
 
@@ -430,7 +432,7 @@ void CreateColorAttachment(GLuint& handle, const glm::ivec2& displaySize)
 {
     glGenTextures(1, &handle);
     glBindTexture(GL_TEXTURE_2D, handle);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, displaySize.x, displaySize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, displaySize.x, displaySize.y, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
@@ -488,6 +490,7 @@ void Init(App* app)
 
     u32 patrickIdx = LoadModel(app, "Patrick/Patrick.obj");
     CreateEntity(app, patrickIdx, programIdx, glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateEntity(app, patrickIdx, programIdx, glm::vec3(0, 0, -20), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
     CreateEntity(app, patrickIdx, programIdx, glm::vec3(5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
     CreateEntity(app, patrickIdx, programIdx, glm::vec3(-5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
     CreateEntity(app, patrickIdx, programIdx, glm::vec3(10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
@@ -505,6 +508,7 @@ void Init(App* app)
     // Create lights
     CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(1, 1, 1), glm::vec3(1, 1, 1), glm::vec3(1, 1, 1), 0);
     CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(0, 0, 1), glm::vec3(-1, 1, 1), glm::vec3(1, 1, 1), 0);
+    CreateLight(app, Light::Type::POINT, glm::vec3(1, 0, 0), glm::vec3(0), glm::vec3(0, 0, 1), 10);
     
     // Create Uniform Buffer
     glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &app->maxUniformBufferSize);
@@ -664,13 +668,20 @@ void Update(App* app)
 
         light.uniformOffset = app->uniform.head;
         PushVec3(app->uniform, light.color);
-        PushVec3(app->uniform, light.direction);
-        if (light.type == Light::Type::POINT)
+        
+        switch (light.type)
         {
+        case Light::Type::DIRECTIONAL:
+            PushVec3(app->uniform, light.direction);
+            break;
+        case Light::Type::POINT:
+            PushVec3(app->uniform, light.center);
+            PushFloat(app->uniform, light.range);
             PushMat4(app->uniform, light.transform);
             PushMat4(app->uniform, app->projection * app->view * light.transform);
-            PushFloat(app->uniform, light.range);
+            break;
         }
+
         light.uniformSize = app->uniform.head - light.uniformOffset;
     }
     //ELOG("Max: %d , Head: %d", app->maxUniformBufferSize, app->uniform.head);
@@ -679,6 +690,8 @@ void Update(App* app)
 
 void Render(App* app)
 {
+    glEnable(GL_DEPTH_TEST);
+
     // Pass global parameters data to shader
     glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(0), app->uniform.handle, 0, app->globalsSize);
 
@@ -686,7 +699,7 @@ void Render(App* app)
     glBindFramebuffer(GL_FRAMEBUFFER, app->frameBufferHandle);
     
     // Set up render
-    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     glViewport(0, 0, app->displaySize.x, app->displaySize.y);
@@ -738,7 +751,7 @@ void Render(App* app)
     
     glViewport(0, 0, app->displaySize.x, app->displaySize.y);
     
-    //glBlendFunc(GL_SRC_COLOR, GL_ONE_MINUS_SRC_COLOR);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
     for (u32 i = 0; i < app->lights.size(); ++i)
     {
@@ -759,9 +772,11 @@ void Render(App* app)
         {
         case Light::Type::DIRECTIONAL:
             modelIdx = app->screenIdx;
+            glDisable(GL_DEPTH_TEST);
             break;
         case Light::Type::POINT:
             modelIdx = app->sphereIdx;
+            glEnable(GL_DEPTH_TEST);
             break;
         }
 

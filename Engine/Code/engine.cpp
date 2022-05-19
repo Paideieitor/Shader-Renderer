@@ -398,7 +398,10 @@ u32 CreateEntity(App* const app, u32 modelIdx, u32 programIdx, const glm::vec3& 
     entity.modelIdx = modelIdx;
     entity.programIdx = programIdx;
 
-    entity.transform = Rotate(Scale(Translate(IDENTITY4, position), scaleFactor), rotation);
+    entity.transform = Rotate(Scale(Translate(IDENTITY4, position), scaleFactor), (rotation / 360.0f) * 2.0f * PI);
+    entity.position = position;
+    entity.scale = scaleFactor;
+    entity.rotation = rotation;
 
     return app->entities.size() - 1u;
 }
@@ -488,13 +491,13 @@ void Init(App* app)
     app->defaultTextureIdx = LoadTexture2D(app, "color_white.png");
     BuildPrimitives(app);
 
-    u32 patrickIdx = LoadModel(app, "Patrick/Patrick.obj");
-    CreateEntity(app, patrickIdx, programIdx, glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateEntity(app, patrickIdx, programIdx, glm::vec3(0, 0, -20), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateEntity(app, patrickIdx, programIdx, glm::vec3(5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateEntity(app, patrickIdx, programIdx, glm::vec3(-5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateEntity(app, patrickIdx, programIdx, glm::vec3(10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateEntity(app, patrickIdx, programIdx, glm::vec3(-10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    app->patrickIdx = LoadModel(app, "Patrick/Patrick.obj");
+    CreateEntity(app, app->patrickIdx, programIdx, glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->patrickIdx, programIdx, glm::vec3(0, 0, -20), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->patrickIdx, programIdx, glm::vec3(5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->patrickIdx, programIdx, glm::vec3(-5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->patrickIdx, programIdx, glm::vec3(10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->patrickIdx, programIdx, glm::vec3(-10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
 
     CreateEntity(app, app->planeIdx, programIdx, glm::vec3(0, -3.4, 0), glm::vec3(100), glm::vec3(0,0,0));
     CreateEntity(app, app->sphereIdx, programIdx, glm::vec3(0, 3.2, 0), glm::vec3(1.4f), glm::vec3(220, 234, 43));
@@ -507,8 +510,20 @@ void Init(App* app)
 
     // Create lights
     CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(1, 1, 1), glm::vec3(1, 1, 1), glm::vec3(1, 1, 1), 0);
-    CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(0, 0, 1), glm::vec3(-1, 1, 1), glm::vec3(1, 1, 1), 0);
-    CreateLight(app, Light::Type::POINT, glm::vec3(1, 0, 0), glm::vec3(0), glm::vec3(0, 0, 1), 10);
+    //CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(0, 0, 1), glm::vec3(-1, 1, 1), glm::vec3(1, 1, 1), 0);
+    //
+    //srand(0);
+    //for (i32 i = 0; i < 100; ++i)
+    //{
+    //    i32 x = (rand() % 50) - 25;
+    //    i32 y = 0;
+    //    i32 z = (rand() % 50) - 25;
+    //    f32 g = (f32)(rand() % 100) / 100.0f;
+    //    f32 b = (f32)(rand() % 100) / 100.0f;
+    //    f32 r = (f32)(rand() % 100) / 100.0f;
+    //    i32 s = (rand() % 10) + 5;
+    //    CreateLight(app, Light::Type::POINT, glm::vec3(r, g, b), glm::vec3(0), glm::vec3(x, y, z), 5);
+    //}
 
     // Screen Shader
     app->toScreenProgramIdx = LoadProgram(app, "shaders.glsl", "TO_SCREEN");
@@ -571,8 +586,7 @@ void Init(App* app)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Depth test
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
+    glDisable(GL_CULL_FACE);
     glEnable(GL_BLEND);
 }
 
@@ -607,7 +621,8 @@ void Gui(App* app)
     if (ImGui::Button("DEPTH"))
         app->mode = Mode::DEPTH;
 
-    ImGui::SliderAngle("camera", &app->alpha);
+    ImGui::SliderAngle("camera rotation", &app->alpha);
+    ImGui::SliderFloat("camera distance", &app->camDist, 1.0f, 100.0f);
 
     switch (app->mode)
     {
@@ -628,16 +643,153 @@ void Gui(App* app)
         break;
     }
 
+    ImGui::Separator();
+    if (app->selectedEntity + app->selectedLight > -2)
+        if (ImGui::CollapsingHeader("Selected", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (ImGui::Button("Delete"))
+            {
+                if (app->selectedEntity > -1)
+                    app->entities.erase(app->entities.begin() + app->selectedEntity);
+                else
+                    app->lights.erase(app->lights.begin() + app->selectedLight);
+
+                app->selectedEntity = -1;
+                app->selectedLight = -1;
+            }
+            else
+            {
+                char name[64];
+                if (app->selectedEntity > -1)
+                {
+                    sprintf(name, "Entity %d", app->selectedEntity);
+                    ImGui::Text(name);
+
+                    Entity& entity = app->entities[app->selectedEntity];
+
+                    if (ImGui::DragFloat3("Position", (float*)&entity.position))
+                        entity.transform = Rotate(Scale(Translate(IDENTITY4, entity.position), entity.scale), (entity.rotation / 360.0f) * 2.0f * PI);
+                    if (ImGui::DragFloat3("Scale", (float*)&entity.scale))
+                        entity.transform = Rotate(Scale(Translate(IDENTITY4, entity.position), entity.scale), (entity.rotation / 360.0f) * 2.0f * PI);
+                    if (ImGui::DragFloat3("Rotation", (float*)&entity.rotation))
+                        entity.transform = Rotate(Scale(Translate(IDENTITY4, entity.position), entity.scale), (entity.rotation / 360.0f) * 2.0f * PI);
+                }
+                else
+                {
+                    Light& light = app->lights[app->selectedLight];
+                    switch (light.type)
+                    {
+                    case Light::Type::DIRECTIONAL:
+                    {
+                        const char* type = "Directional";
+                        sprintf(name, "%s Light %d", type, app->selectedLight);
+                    }
+                    break;
+                    case Light::Type::POINT:
+                    {
+                        const char* type = "Point";
+                        sprintf(name, "%s Light %d", type, app->selectedLight);
+                    }
+                    break;
+                    }
+                    ImGui::Text(name);
+
+                    switch (light.type)
+                    {
+                    case Light::Type::DIRECTIONAL:
+                    {
+                        ImGui::DragFloat3("Direction", (float*)&light.direction);
+                    }
+                    break;
+                    case Light::Type::POINT:
+                    {
+                        if (ImGui::DragFloat3("Center", (float*)&light.center))
+                            light.transform = Scale(Translate(IDENTITY4, light.center), glm::vec3(light.range));
+                        if (ImGui::DragFloat("Range", &light.range))
+                            light.transform = Scale(Translate(IDENTITY4, light.center), glm::vec3(light.range));
+                    }
+                    break;
+                    }
+
+                    ImGui::Separator();
+                    ImGui::ColorPicker3("Color", (float*)(&light.color), ImGuiColorEditFlags_Float);
+                }
+            }
+        }
+
+    ImGui::End();
+
+    ImGui::Begin("Scene");
+
+    if (ImGui::Button("Create Directional Light"))
+        CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(1), glm::vec3(1), glm::vec3(0), 0);
+    ImGui::SameLine();
+    if (ImGui::Button("Create Point Light"))
+        CreateLight(app, Light::Type::POINT, glm::vec3(1), glm::vec3(0), glm::vec3(0), 10);
+
+    if (ImGui::TreeNode("Entities"))
+    {
+        for (u32 i = 0u; i < app->entities.size(); ++i)
+        {
+            char name[64];
+            sprintf(name, "Entity %d", i);
+
+            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf;
+            if (app->selectedEntity == i)
+                flags |= ImGuiTreeNodeFlags_Selected;
+            if (ImGui::TreeNodeEx(name, flags))
+                if (ImGui::IsItemClicked())
+                {
+                    app->selectedEntity = i;
+                    app->selectedLight = -1;
+                }
+            ImGui::TreePop();
+        }
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Lights"))
+    {
+        for (u32 i = 0u; i < app->lights.size(); ++i)
+        {
+            char name[64];
+            switch (app->lights[i].type)
+            {
+            case Light::Type::DIRECTIONAL:
+            {
+                const char* type = "Directional";
+                sprintf(name, "%s %d", type, i);
+            }
+                break;
+            case Light::Type::POINT:
+            {
+                const char* type = "Point";
+                sprintf(name, "%s %d", type, i);
+            }
+                break;
+            }
+
+            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf;
+            if (app->selectedLight == i)
+                flags |= ImGuiTreeNodeFlags_Selected;
+            if (ImGui::TreeNodeEx(name, flags))
+                if (ImGui::IsItemClicked())
+                {
+                    app->selectedEntity = -1;
+                    app->selectedLight = i;
+                }
+            ImGui::TreePop();
+        }
+        ImGui::TreePop();
+    }
+
     ImGui::End();
 }
 
 void Update(App* app)
 {
     //Rotate Camera
-    //u32 milliseconds = app->timeRunning * 1000;
-    //u32 spinTime = 10 * 1000;
-    //float alpha = 2.0f * PI * ((float)(milliseconds % spinTime) / spinTime);
-    app->cameraPosition = 25.0f * glm::vec3(cos(app->alpha), 0, sin(app->alpha));
+    app->cameraPosition = app->camDist * glm::vec3(cos(app->alpha), 0, sin(app->alpha));
 
     app->cameraDirection = glm::normalize(glm::vec3(0) - app->cameraPosition);
     app->view = glm::lookAt(app->cameraPosition, app->cameraPosition + glm::normalize(app->cameraDirection), glm::vec3(0, 1, 0));
@@ -677,7 +829,7 @@ void Update(App* app)
         switch (light.type)
         {
         case Light::Type::DIRECTIONAL:
-            PushVec3(app->uniform, light.direction);
+            PushVec3(app->uniform, glm::normalize(light.direction));
             break;
         case Light::Type::POINT:
             PushVec3(app->uniform, light.center);
@@ -751,6 +903,8 @@ void Render(App* app)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Lighting Pass
+    glDisable(GL_DEPTH_TEST);
+
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
@@ -778,11 +932,9 @@ void Render(App* app)
             {
             case Light::Type::DIRECTIONAL:
                 modelIdx = app->screenIdx;
-                glDisable(GL_DEPTH_TEST);
                 break;
             case Light::Type::POINT:
                 modelIdx = app->sphereIdx;
-                glEnable(GL_DEPTH_TEST);
                 break;
             }
 

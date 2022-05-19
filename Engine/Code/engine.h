@@ -183,6 +183,9 @@ struct Entity
     GLuint programIdx;
 
     glm::mat4 transform;
+    glm::vec3 position;
+    glm::vec3 scale;
+    glm::vec3 rotation;
 
     u32 uniformOffset;
     u32 uniformSize;
@@ -221,8 +224,9 @@ enum class Mode
 
 struct App
 {
-    float alpha = PI / 2.0f;
-    float plSize = 1.0f;
+    f32 alpha = PI / 2.0f;
+    f32 camDist = 25.0f;
+
     // Loop
     f32  deltaTime;
     f32 timeRunning;
@@ -250,9 +254,14 @@ struct App
 
     std::vector<Entity> entities;
 
+    // UI
+    i32 selectedEntity = -1;
+    i32 selectedLight = -1;
+
     // Primitives
     u32 defaultTextureIdx;
 
+    u32 patrickIdx;
     u32 planeIdx;
     u32 sphereIdx;
     u32 screenIdx;

@@ -116,7 +116,6 @@ uniform sampler2D uAlbedo;
 uniform sampler2D uNormals;
 uniform sampler2D uPosition;
 uniform sampler2D uDepth;
-uniform sampler2D uTrueDepth;
 
 layout(location = 0) out vec4 oColor;
 
@@ -124,9 +123,20 @@ void main()
 {
 	vec3 albedo = texture(uAlbedo, vTexCoord).xyz;
 	vec3 normal = texture(uNormals, vTexCoord).xyz;
+	vec3 position = texture(uPosition, vTexCoord).xyz;
+	vec3 viewDir = normalize(uCameraPosition - position);
+
 	vec3 diffuse = uColor * mix(vec3(0), albedo, dot(normal, uDirection)) * 0.7;
 
-	oColor = vec4(diffuse, 1.0);
+	vec3 ambiental = uColor * 0.1;
+
+	vec3 specVec = normalize(reflect(uDirection, normal));
+	float spec = -dot(specVec, viewDir);
+	spec = clamp(spec, 0.0, 1.0);
+	spec = pow(spec, 64.0);
+	vec3 specular = uColor * spec;
+
+	oColor = vec4(diffuse + ambiental + specular, 1.0);
 }
 
 #endif
@@ -200,14 +210,25 @@ void main()
 	float depth = texture(uDepth, texcoord).x;
 	float vDepth = LinearizeDepth(gl_FragCoord.z) / far;
 
+	vec3 viewDir = normalize(uCameraPosition - position);
+
 	vec3 direction = uCenter - position;
 	float dist = length(direction);
-	if (vDepth < depth && dist < uRange && depth > 0.0)
+	direction = normalize(direction);
+
+	if (vDepth > depth && dist < uRange && depth > 0.0)
 	{
-		direction = normalize(direction);
 		vec3 diffuse = uColor * (mix(vec3(0), albedo, dot(normal, direction)) * 0.7) * (1 - dist / uRange);
 
-		oColor = vec4(diffuse,1);
+		vec3 ambiental = uColor * 0.1 * (1 - dist / uRange);
+
+		vec3 specVec = normalize(reflect(direction, normal));
+		float spec = -dot(specVec, viewDir);
+		spec = clamp(spec, 0.0, 1.0);
+		spec = pow(spec, 64.0);
+		vec3 specular = uColor * spec * (1 - dist / uRange);
+
+		oColor = vec4(diffuse + ambiental + specular,1);
 	}
 	else
 		oColor = vec4(0,0,0,0);

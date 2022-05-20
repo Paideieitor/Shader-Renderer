@@ -20,8 +20,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Code\engine.cpp" />
+    <ClCompile Include="Code\loader.cpp" />
     <ClCompile Include="Code\platform.cpp" />
-    <ClCompile Include="loader.cpp" />
     <ClCompile Include="ThirdParty\glad\include\glad\glad.c" />
     <ClCompile Include="ThirdParty\imgui-docking\imgui.cpp" />
     <ClCompile Include="ThirdParty\imgui-docking\imgui_demo.cpp" />
@@ -34,8 +34,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Code\engine.h" />
+    <ClInclude Include="Code\loader.h" />
     <ClInclude Include="Code\platform.h" />
-    <ClInclude Include="loader.h" />
     <ClInclude Include="ThirdParty\glad\include\glad\glad.h" />
     <ClInclude Include="ThirdParty\glad\include\glad\khrplatform.h" />
     <ClInclude Include="ThirdParty\imgui-docking\imconfig.h" />

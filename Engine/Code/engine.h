@@ -11,6 +11,8 @@
 
 #define IDENTITY4 glm::mat4(1.0f)
 
+#define LIGHT_AMOUNT 100
+
 struct Buffer
 {
     GLuint handle;
@@ -224,8 +226,19 @@ enum class Mode
 
 struct App
 {
+    // Camera
+    bool freeCam = false;
+    bool movingLights = true;
+
     f32 alpha = PI / 2.0f;
     f32 camDist = 25.0f;
+    f32 camHeight = 0.0f;
+
+    glm::vec3 cameraPosition = glm::vec3(0);
+    glm::vec2 cameraRotation = glm::vec3(0);
+    glm::vec3 cameraDirection = glm::vec3(0);
+    f32 camSpeed = 100.0f;
+    f32 camTurnSpeed = 100.0f;
 
     // Loop
     f32  deltaTime;
@@ -271,9 +284,6 @@ struct App
     float znear;
     float zfar;
     glm::mat4 projection;
-
-    glm::vec3 cameraPosition;
-    glm::vec3 cameraDirection;
     glm::mat4 view;
 
     // Uniform Buffer
@@ -295,6 +305,7 @@ struct App
     GLuint frameBufferHandle;
 
     // Deferred Shading
+    u32 texturedMeshProgramIdx;
     u32 directionalProgramIdx;
     u32 pointProgramIdx;
     u32 toScreenProgramIdx;

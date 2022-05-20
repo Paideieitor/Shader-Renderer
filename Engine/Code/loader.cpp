@@ -94,8 +94,24 @@ u32 LoadProgram(App* app, const char* filepath, const char* programName)
     program.filepath = filepath;
     program.programName = programName;
     program.lastWriteTimestamp = GetFileLastWriteTimestamp(filepath);
-    app->programs.push_back(program);
 
+    GLint attribCount = 0;
+    glGetProgramiv(program.handle, GL_ACTIVE_ATTRIBUTES, &attribCount);
+
+    for (GLint i = 0; i < attribCount; ++i)
+    {
+        char name[64];
+        GLsizei nameLenght = 64;
+        GLint size;
+        GLenum type;
+
+        glGetActiveAttrib(program.handle, i, ARRAY_COUNT(name), &nameLenght, &size, &type, name);
+
+        GLint location = glGetAttribLocation(program.handle, name);
+        program.vetexInputLayout.attributes.push_back({ (u8)location,(u8)size });
+    }
+
+    app->programs.push_back(program);
     return app->programs.size() - 1;
 }
 
@@ -274,8 +290,8 @@ void ProcessAssimpMaterial(App* app, aiMaterial* material, Material& myMaterial,
     material->Get(AI_MATKEY_SHININESS, shininess);
 
     myMaterial.name = name.C_Str();
-    myMaterial.albedo = vec3(diffuseColor.r, diffuseColor.g, diffuseColor.b);
-    myMaterial.emissive = vec3(emissiveColor.r, emissiveColor.g, emissiveColor.b);
+    myMaterial.albedo = glm::vec3(diffuseColor.r, diffuseColor.g, diffuseColor.b);
+    myMaterial.emissive = glm::vec3(emissiveColor.r, emissiveColor.g, emissiveColor.b);
     myMaterial.smoothness = shininess / 256.0f;
 
     aiString aiFilename;

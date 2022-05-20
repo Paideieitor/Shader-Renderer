@@ -476,14 +476,14 @@ void Init(App* app)
     glGetIntegerv(GL_NUM_EXTENSIONS, &extensionNum);
     for (int i = 0; i < extensionNum; ++i)
     {
-        GLubyte extension[64];
+        GLubyte* extension = new GLubyte[64];
         memcpy(extension, glGetStringi(GL_EXTENSIONS, GLuint(i)), 64);
         app->openGLExtensions.push_back(extension);
     }
 
     // Fill vertex input layout with required attributes
-    GLuint programIdx = LoadProgram(app, "shaders.glsl", "TEXTURED_MESH");
-    Program& texturedMeshProgram = app->programs[programIdx];
+    app->texturedMeshProgramIdx = LoadProgram(app, "shaders.glsl", "TEXTURED_MESH");
+    Program& texturedMeshProgram = app->programs[app->texturedMeshProgramIdx];
 
     texturedMeshProgram.albedoLocation = glGetUniformLocation(texturedMeshProgram.handle, "uAlbedo");
     
@@ -492,15 +492,15 @@ void Init(App* app)
     BuildPrimitives(app);
 
     app->patrickIdx = LoadModel(app, "Patrick/Patrick.obj");
-    CreateEntity(app, app->patrickIdx, programIdx, glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateEntity(app, app->patrickIdx, programIdx, glm::vec3(0, 0, -20), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateEntity(app, app->patrickIdx, programIdx, glm::vec3(5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateEntity(app, app->patrickIdx, programIdx, glm::vec3(-5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateEntity(app, app->patrickIdx, programIdx, glm::vec3(10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateEntity(app, app->patrickIdx, programIdx, glm::vec3(-10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(0, 0, -20), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(-5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(-10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
 
-    CreateEntity(app, app->planeIdx, programIdx, glm::vec3(0, -3.4, 0), glm::vec3(100), glm::vec3(0,0,0));
-    CreateEntity(app, app->sphereIdx, programIdx, glm::vec3(0, 3.2, 0), glm::vec3(1.4f), glm::vec3(220, 234, 43));
+    CreateEntity(app, app->planeIdx, app->texturedMeshProgramIdx, glm::vec3(0, -3.4, 0), glm::vec3(100), glm::vec3(0,0,0));
+    CreateEntity(app, app->sphereIdx, app->texturedMeshProgramIdx, glm::vec3(0, 3.2, 0), glm::vec3(1.4f), glm::vec3(220, 234, 43));
     
     // Deferred Shading
     app->directionalProgramIdx = LoadProgram(app, "shaders.glsl", "DIRECTIONAL_LIGHT");
@@ -509,21 +509,22 @@ void Init(App* app)
     SetLightProgramTextureLocations(app, app->pointProgramIdx);
 
     // Create lights
-    CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(1, 1, 1), glm::vec3(1, 1, 1), glm::vec3(1, 1, 1), 0);
-    //CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(0, 0, 1), glm::vec3(-1, 1, 1), glm::vec3(1, 1, 1), 0);
+    CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(0.3f, 0.3f, 0.3f), glm::vec3(1, 1, 1), glm::vec3(1, 1, 1), 0);
+    CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(0, 0, 0.5f), glm::vec3(-1, 1, 1), glm::vec3(1, 1, 1), 0);
     //
-    //srand(0);
-    //for (i32 i = 0; i < 100; ++i)
-    //{
-    //    i32 x = (rand() % 50) - 25;
-    //    i32 y = 0;
-    //    i32 z = (rand() % 50) - 25;
-    //    f32 g = (f32)(rand() % 100) / 100.0f;
-    //    f32 b = (f32)(rand() % 100) / 100.0f;
-    //    f32 r = (f32)(rand() % 100) / 100.0f;
-    //    i32 s = (rand() % 10) + 5;
-    //    CreateLight(app, Light::Type::POINT, glm::vec3(r, g, b), glm::vec3(0), glm::vec3(x, y, z), 5);
-    //}
+    srand(0);
+    for (i32 i = 0; i < LIGHT_AMOUNT; ++i)
+    {
+        i32 x = (rand() % 50) - 25;
+        i32 y = 0;
+        i32 z = (rand() % 50) - 25;
+        f32 g = (f32)(rand() % 100) / 100.0f;
+        f32 b = (f32)(rand() % 100) / 100.0f;
+        f32 r = (f32)(rand() % 100) / 100.0f;
+        i32 s = (rand() % 5) + 5;
+
+        CreateLight(app, Light::Type::POINT, glm::vec3(r, g, b), glm::vec3(0), glm::vec3(x, y, z), s);
+    }
 
     // Screen Shader
     app->toScreenProgramIdx = LoadProgram(app, "shaders.glsl", "TO_SCREEN");
@@ -592,20 +593,26 @@ void Init(App* app)
 
 void Gui(App* app)
 {
-    ImGui::Begin("Info");
+    ImGui::Begin("Inspector");
 
-    ImGui::BulletText("OpenGL version: %s", app->openGlVersion);
-    ImGui::BulletText("OpenGL renderer: %s", app->gpuName);
-    ImGui::BulletText("OpenGL vendor: %s", app->openGlVendor);
-    ImGui::BulletText("OpenGL GLSL version: %s", app->GLSLVersion);
-    if (ImGui::TreeNode("OpenGL extensions"))
+    if (ImGui::CollapsingHeader("Info"))
     {
-        for (int i = 0; i < app->openGLExtensions.size(); ++i)
-            ImGui::Text("%s", app->openGLExtensions[i]);
-        ImGui::TreePop();
+        ImGui::BulletText("OpenGL version: %s", app->openGlVersion);
+        ImGui::BulletText("OpenGL renderer: %s", app->gpuName);
+        ImGui::BulletText("OpenGL vendor: %s", app->openGlVendor);
+        ImGui::BulletText("OpenGL GLSL version: %s", app->GLSLVersion);
+        if (ImGui::TreeNode("OpenGL extensions"))
+        {
+            for (int i = 0; i < app->openGLExtensions.size(); ++i)
+                ImGui::Text("%s", app->openGLExtensions[i]);
+            ImGui::TreePop();
+        }
+        ImGui::Separator();
     }
+
     ImGui::BulletText("FPS: %f", 1.0f / app->deltaTime);
 
+    ImGui::Text("Display Mode:");
     if (ImGui::Button("COLOR"))
         app->mode = Mode::COLOR;
     ImGui::SameLine();
@@ -620,9 +627,25 @@ void Gui(App* app)
     ImGui::SameLine();
     if (ImGui::Button("DEPTH"))
         app->mode = Mode::DEPTH;
+    ImGui::Separator();
 
-    ImGui::SliderAngle("camera rotation", &app->alpha);
-    ImGui::SliderFloat("camera distance", &app->camDist, 1.0f, 100.0f);
+    ImGui::Checkbox("Moving Lights", &app->movingLights);
+    ImGui::Text("Camera:");
+    ImGui::Checkbox("Free Camera", &app->freeCam);
+
+    if (!app->freeCam)
+    {
+        ImGui::SliderAngle("Rotation##camera", &app->alpha);
+        ImGui::SliderFloat("Distance##camera", &app->camDist, 1.0f, 100.0f);
+        ImGui::SliderFloat("Height##camera", &app->camHeight, -50.0f, 50.0f);
+    }
+    else
+    {
+        ImGui::DragFloat3("Position##camera", (float*)&app->cameraPosition);
+        ImGui::DragFloat2("Rotation##camera", (float*)&app->cameraRotation);
+        ImGui::SliderFloat("Speed##camera", &app->camSpeed, 0.1f, 500.0f);
+        ImGui::SliderFloat("Turn Speed##camera", &app->camTurnSpeed, 0.1f, 500.0f);
+    }
 
     switch (app->mode)
     {
@@ -666,6 +689,36 @@ void Gui(App* app)
                     ImGui::Text(name);
 
                     Entity& entity = app->entities[app->selectedEntity];
+
+                    const char* items[] = { "PLANE", "SPHERE", "PATRICK" };
+                    u32 currentModel = -1;
+                    if (entity.modelIdx == app->planeIdx)
+                        currentModel = 0;
+                    else if (entity.modelIdx == app->sphereIdx)
+                        currentModel = 1;
+                    else if (entity.modelIdx == app->patrickIdx)
+                        currentModel = 2;
+
+                    if (ImGui::BeginCombo("Model", items[currentModel]))
+                    {
+                        for (u32 i = 0; i < 3u; ++i)
+                        {
+                            const bool is_selected = (currentModel == i);
+                            if (ImGui::Selectable(items[i], is_selected))
+                            {
+                                if (std::string(items[i]) == "PLANE")
+                                    entity.modelIdx = app->planeIdx;
+                                else if (std::string(items[i]) == "SPHERE")
+                                    entity.modelIdx = app->sphereIdx;
+                                else if (std::string(items[i]) == "PATRICK")
+                                    entity.modelIdx = app->patrickIdx;
+                            }
+
+                            if (is_selected)
+                                ImGui::SetItemDefaultFocus();
+                        }
+                        ImGui::EndCombo();
+                    }
 
                     if (ImGui::DragFloat3("Position", (float*)&entity.position))
                         entity.transform = Rotate(Scale(Translate(IDENTITY4, entity.position), entity.scale), (entity.rotation / 360.0f) * 2.0f * PI);
@@ -721,6 +774,8 @@ void Gui(App* app)
 
     ImGui::Begin("Scene");
 
+    if (ImGui::Button("Create Entity"))
+        CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(0), glm::vec3(1), glm::vec3(0));
     if (ImGui::Button("Create Directional Light"))
         CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(1), glm::vec3(1), glm::vec3(0), 0);
     ImGui::SameLine();
@@ -788,11 +843,81 @@ void Gui(App* app)
 
 void Update(App* app)
 {
-    //Rotate Camera
-    app->cameraPosition = app->camDist * glm::vec3(cos(app->alpha), 0, sin(app->alpha));
+    //Camera
 
-    app->cameraDirection = glm::normalize(glm::vec3(0) - app->cameraPosition);
+    if (!app->freeCam)
+    {
+        app->cameraPosition = app->camDist * glm::vec3(cos(app->alpha), app->camHeight, sin(app->alpha));
+
+        app->cameraDirection = glm::vec3(0) - app->cameraPosition;
+    }
+    else
+    {
+        glm::vec2 r = (app->cameraRotation / 360.0f) * 2.0f * PI;
+        app->cameraDirection = glm::normalize(glm::vec3(Rotate(IDENTITY4, glm::vec3(0, -r.x, r.y)) * glm::vec4(glm::vec3(1, 0, 0), 0.0)));
+
+        if (app->input.keys[K_W] == BUTTON_PRESSED)
+        {
+            if (app->input.keys[K_SPACE] == BUTTON_PRESSED)
+            {
+                app->cameraRotation.y += app->camTurnSpeed * app->deltaTime;
+
+                glm::vec2 r = (app->cameraRotation / 360.0f) * 2.0f * PI;
+                app->cameraDirection = glm::normalize(glm::vec3(Rotate(IDENTITY4, glm::vec3(0, -r.x, r.y)) * glm::vec4(glm::vec3(1, 0, 0), 0.0)));
+            }
+            else
+                app->cameraPosition += app->cameraDirection * app->camSpeed * app->deltaTime;
+        }
+        if (app->input.keys[K_S] == BUTTON_PRESSED)
+        {
+            if (app->input.keys[K_SPACE] == BUTTON_PRESSED)
+            {
+                app->cameraRotation.y -= app->camTurnSpeed * app->deltaTime;
+
+                glm::vec2 r = (app->cameraRotation / 360.0f) * 2.0f * PI;
+                app->cameraDirection = glm::normalize(glm::vec3(Rotate(IDENTITY4, glm::vec3(0, -r.x, r.y)) * glm::vec4(glm::vec3(1, 0, 0), 0.0)));
+            }
+            else
+                app->cameraPosition -= app->cameraDirection * app->camSpeed * app->deltaTime;
+        }
+        if (app->input.keys[K_A] == BUTTON_PRESSED)
+        {
+            app->cameraRotation.x -= app->camTurnSpeed * app->deltaTime;
+
+            glm::vec2 r = (app->cameraRotation / 360.0f) * 2.0f * PI;
+            app->cameraDirection = glm::normalize(glm::vec3(Rotate(IDENTITY4, glm::vec3(0, -r.x, r.y)) * glm::vec4(glm::vec3(1, 0, 0), 0.0)));
+        }
+        if (app->input.keys[K_D] == BUTTON_PRESSED)
+        {
+            app->cameraRotation.x += app->camTurnSpeed * app->deltaTime;
+
+            glm::vec2 r = (app->cameraRotation / 360.0f) * 2.0f * PI;
+            app->cameraDirection = glm::normalize(glm::vec3(Rotate(IDENTITY4, glm::vec3(0, -r.x, r.y)) * glm::vec4(glm::vec3(1, 0, 0), 0.0)));
+        }
+    }
     app->view = glm::lookAt(app->cameraPosition, app->cameraPosition + glm::normalize(app->cameraDirection), glm::vec3(0, 1, 0));
+
+    if (app->movingLights)
+        for (u32 i = 0u; i < app->lights.size(); ++i)
+        {
+            srand(i);
+            Light& light = app->lights[i];
+            if (light.type == Light::Type::DIRECTIONAL)
+                continue;
+            i32 direction =  (rand() % 3) - 1;
+
+            if (direction != 0)
+            {
+                u32 spinTime = (rand() % 50000) + 9000;
+                f32 distance = glm::length(light.center);
+
+                u32 milliseconds = app->timeRunning * 1000 + (rand() % 1000);
+                float alpha = 2.0f * PI * ((float)(milliseconds % spinTime) / spinTime) * direction;
+
+                app->lights[i].center = distance * glm::vec3(cos(alpha), light.center.y, sin(alpha));
+                app->lights[i].transform = Scale(Translate(IDENTITY4, app->lights[i].center), glm::vec3(app->lights[i].range));
+            }
+        }
 
     // Set Uniform Buffer data
     MapBuffer(app->uniform, GL_WRITE_ONLY);

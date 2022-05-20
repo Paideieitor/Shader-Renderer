@@ -51,7 +51,7 @@
     <ClCompile Include="ThirdParty\stb\stb.cpp">
       <Filter>Stb</Filter>
     </ClCompile>
-    <ClCompile Include="loader.cpp">
+    <ClCompile Include="Code\loader.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
   </ItemGroup>
@@ -95,7 +95,7 @@
     <ClInclude Include="ThirdParty\stb\stb_image.h">
       <Filter>Stb</Filter>
     </ClInclude>
-    <ClInclude Include="loader.h">
+    <ClInclude Include="Code\loader.h">
       <Filter>Engine</Filter>
     </ClInclude>
   </ItemGroup>

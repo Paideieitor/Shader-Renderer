@@ -54,7 +54,7 @@ layout(location = 2) out vec4 oPosition;
 layout(location = 3) out vec4 oDepth;
 
 float near = 0.1; 
-float far  = 100.0; 
+float far  = 1000.0; 
   
 float LinearizeDepth(float depth) 
 {
@@ -192,7 +192,7 @@ layout(location = 0) out vec4 oColor;
 in vec3 vPosition;
 
 float near = 0.1; 
-float far  = 100.0; 
+float far  = 1000.0; 
   
 float LinearizeDepth(float depth) 
 {
@@ -218,17 +218,17 @@ void main()
 
 	if (vDepth > depth && dist < uRange && depth > 0.0)
 	{
-		vec3 diffuse = uColor * (mix(vec3(0), albedo, dot(normal, direction)) * 0.7) * (1 - dist / uRange);
+		vec3 diffuse = uColor * (mix(vec3(0), albedo, dot(normal, direction)) * 0.7);
 
-		vec3 ambiental = uColor * 0.1 * (1 - dist / uRange);
+		vec3 ambiental = uColor * 0.1;
 
 		vec3 specVec = normalize(reflect(direction, normal));
 		float spec = -dot(specVec, viewDir);
 		spec = clamp(spec, 0.0, 1.0);
 		spec = pow(spec, 64.0);
-		vec3 specular = uColor * spec * (1 - dist / uRange);
+		vec3 specular = uColor * spec;
 
-		oColor = vec4(diffuse + ambiental + specular,1);
+		oColor = vec4((diffuse + ambiental + specular)  * (1 - dist / uRange),1);
 	}
 	else
 		oColor = vec4(0,0,0,0);

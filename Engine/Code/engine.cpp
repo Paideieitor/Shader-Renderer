@@ -511,7 +511,7 @@ void Init(App* app)
     // Create lights
     CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(0.3f, 0.3f, 0.3f), glm::vec3(1, 1, 1), glm::vec3(1, 1, 1), 0);
     CreateLight(app, Light::Type::DIRECTIONAL, glm::vec3(0, 0, 0.5f), glm::vec3(-1, 1, 1), glm::vec3(1, 1, 1), 0);
-    //
+    
     srand(0);
     for (i32 i = 0; i < LIGHT_AMOUNT; ++i)
     {
@@ -522,7 +522,7 @@ void Init(App* app)
         f32 b = (f32)(rand() % 100) / 100.0f;
         f32 r = (f32)(rand() % 100) / 100.0f;
         i32 s = (rand() % 5) + 5;
-
+    
         CreateLight(app, Light::Type::POINT, glm::vec3(r, g, b), glm::vec3(0), glm::vec3(x, y, z), s);
     }
 
@@ -756,8 +756,9 @@ void Gui(App* app)
                     break;
                     case Light::Type::POINT:
                     {
-                        if (ImGui::DragFloat3("Center", (float*)&light.center))
-                            light.transform = Scale(Translate(IDENTITY4, light.center), glm::vec3(light.range));
+                        if (!app->movingLights)
+                            if (ImGui::DragFloat3("Center##point", (float*)&light.center))
+                                light.transform = Scale(Translate(IDENTITY4, light.center), glm::vec3(light.range));
                         if (ImGui::DragFloat("Range", &light.range))
                             light.transform = Scale(Translate(IDENTITY4, light.center), glm::vec3(light.range));
                     }

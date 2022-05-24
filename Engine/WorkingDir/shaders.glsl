@@ -8,6 +8,8 @@ layout(binding = 0, std140) uniform GlobalParams
 {
 	vec3 uCameraPosition;
 	vec3 uResolution;
+	float znear;
+	float zfar;
 };
 
 #if defined(VERTEX) ///////////////////////////////////////////////////
@@ -52,14 +54,11 @@ layout(location = 0) out vec4 oAlbedo;
 layout(location = 1) out vec4 oNormal;
 layout(location = 2) out vec4 oPosition;
 layout(location = 3) out vec4 oDepth;
-
-float near = 0.1; 
-float far  = 1000.0; 
   
 float LinearizeDepth(float depth) 
 {
     float z = depth * 2.0 - 1.0; // back to NDC 
-    return (2.0 * near * far) / (far + near - z * (far - near));	
+    return (2.0 * znear * zfar) / (zfar + znear - z * (zfar - znear));	
 }    
 
 void main()
@@ -67,7 +66,7 @@ void main()
 	oNormal = vec4(vNormal, 1.0);
 	oPosition = vec4(vPosition, 1.0);
 
-	float depth = LinearizeDepth(gl_FragCoord.z) / far;
+	float depth = LinearizeDepth(gl_FragCoord.z) / zfar;
 	oDepth = vec4(vec3(depth), 1.0);
 
 	oAlbedo = texture(uAlbedo, vTexCoord);
@@ -86,6 +85,8 @@ layout(binding = 0, std140) uniform GlobalParams
 {
 	vec3 uCameraPosition;
 	vec3 uResolution;
+	float znear;
+	float zfar;
 };
 
 #if defined(VERTEX) ///////////////////////////////////////////////////
@@ -152,6 +153,8 @@ layout(binding = 0, std140) uniform GlobalParams
 {
 	vec3 uCameraPosition;
 	vec3 uResolution;
+	float znear;
+	float zfar;
 };
 
 layout(binding = 1, std140) uniform LocalParams
@@ -190,14 +193,11 @@ uniform sampler2D uDepth;
 layout(location = 0) out vec4 oColor;
 
 in vec3 vPosition;
-
-float near = 0.1; 
-float far  = 1000.0; 
   
 float LinearizeDepth(float depth) 
 {
     float z = depth * 2.0 - 1.0; // back to NDC 
-    return (2.0 * near * far) / (far + near - z * (far - near));	
+    return (2.0 * znear * zfar) / (zfar + znear - z * (zfar - znear));	
 }  
 
 void main()
@@ -208,7 +208,7 @@ void main()
 	vec3 position = texture(uPosition, texcoord).xyz;
 
 	float depth = texture(uDepth, texcoord).x;
-	float vDepth = LinearizeDepth(gl_FragCoord.z) / far;
+	float vDepth = LinearizeDepth(gl_FragCoord.z) / zfar;
 
 	vec3 viewDir = normalize(uCameraPosition - position);
 
@@ -277,45 +277,3 @@ void main()
 // long as you embrace them within an #ifdef block (as you can see above).
 // The third parameter of the LoadProgram function in engine.cpp allows
 // chosing the shader you want to load by name.
-
-/* LIGHT STUFF
-
-struct Light
-{
-    unsigned int type;
-    vec3 color;
-	vec3 direction;
-    vec3 position;
-};
-
-layout(binding = 0, std140) uniform GlobalParams
-{
-	vec3 uCameraPosition;
-	unsigned int uLightCount;
-	Light uLight[16];
-
-};
-
-	vec3 color = vec3(0);
-	for (unsigned int i = 0; i < uLightCount; ++i)
-		switch (uLight[i].type)
-		{
-			case 0: // DIRECTIONAL
-				vec3 diffuse = uLight[i].color * mix(vec3(0), textureColor, dot(vNormal, uLight[i].direction)) * 0.7;
-	
-				vec3 ambiental = uLight[i].color * 0.2;
-	
-				vec3 specVec = normalize(reflect(uLight[i].direction, vNormal));
-				float spec = -dot(specVec, vViewDir);
-				spec = clamp(spec, 0.0, 1.0);
-				spec = pow(spec, 64.0);
-				vec3 specular = uLight[i].color * spec;
-	
-				color += diffuse + ambiental + specular;
-				break;
-	
-			case 1: // POINT
-				break;
-		}
-	color /= uLightCount;
-*/

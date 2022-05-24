@@ -523,7 +523,7 @@ void Init(App* app)
         f32 r = (f32)(rand() % 100) / 100.0f;
         i32 s = (rand() % 5) + 5;
     
-        CreateLight(app, Light::Type::POINT, glm::vec3(r, g, b), glm::vec3(0), glm::vec3(x, y, z), s);
+        CreateLight(app, Light::Type::POINT, glm::vec3(r, g, b), glm::vec3(0), glm::vec3(x, y, z), (f32)s);
     }
 
     // Screen Shader
@@ -769,7 +769,23 @@ void Gui(App* app)
                     ImGui::ColorPicker3("Color", (float*)(&light.color), ImGuiColorEditFlags_Float);
                 }
             }
+            ImGui::Separator();
         }
+
+    if (ImGui::CollapsingHeader("Danger Zone"))
+    {
+        if (ImGui::Button("Delete All Entities"))
+        {
+            app->entities.clear();
+            app->selectedEntity = -1;
+        }
+
+        if (ImGui::Button("Delete All Lights"))
+        {
+            app->lights.clear();
+            app->selectedLight = -1;
+        }
+    }
 
     ImGui::End();
 
@@ -912,7 +928,7 @@ void Update(App* app)
                 u32 spinTime = (rand() % 50000) + 9000;
                 f32 distance = glm::length(light.center);
 
-                u32 milliseconds = app->timeRunning * 1000 + (rand() % 1000);
+                u32 milliseconds = (u32)(app->timeRunning * 1000.0f) + (rand() % 1000);
                 float alpha = 2.0f * PI * ((float)(milliseconds % spinTime) / spinTime) * direction;
 
                 app->lights[i].center = distance * glm::vec3(cos(alpha), light.center.y, sin(alpha));
@@ -926,6 +942,8 @@ void Update(App* app)
     // Set Global Parameters at the start
     PushVec3(app->uniform, app->cameraPosition);
     PushVec3(app->uniform, glm::vec3(app->displaySize.x, app->displaySize.y, app->aspectRatio));
+    PushFloat(app->uniform, app->znear);
+    PushFloat(app->uniform, app->zfar);
     
     app->globalsSize = app->uniform.head;
     

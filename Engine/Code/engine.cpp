@@ -482,16 +482,16 @@ void Init(App* app)
     }
 
     // Fill vertex input layout with required attributes
-    app->texturedMeshProgramIdx = LoadProgram(app, "shaders.glsl", "TEXTURED_MESH");
+    app->texturedMeshProgramIdx = LoadProgram(app, "Assets/Shaders/shaders.glsl", "TEXTURED_MESH");
     Program& texturedMeshProgram = app->programs[app->texturedMeshProgramIdx];
 
     texturedMeshProgram.albedoLocation = glGetUniformLocation(texturedMeshProgram.handle, "uAlbedo");
     
     // Create entities
-    app->defaultTextureIdx = LoadTexture2D(app, "color_white.png");
+    app->defaultTextureIdx = LoadTexture2D(app, "Assets/Textures/color_white.png");
     BuildPrimitives(app);
 
-    app->patrickIdx = LoadModel(app, "Patrick/Patrick.obj");
+    app->patrickIdx = LoadModel(app, "Assets/Patrick/Patrick.obj");
     CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
     CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(0, 0, -20), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
     CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
@@ -503,9 +503,9 @@ void Init(App* app)
     CreateEntity(app, app->sphereIdx, app->texturedMeshProgramIdx, glm::vec3(0, 3.2, 0), glm::vec3(1.4f), glm::vec3(220, 234, 43));
     
     // Deferred Shading
-    app->directionalProgramIdx = LoadProgram(app, "shaders.glsl", "DIRECTIONAL_LIGHT");
+    app->directionalProgramIdx = LoadProgram(app, "Assets/Shaders/shaders.glsl", "DIRECTIONAL_LIGHT");
     SetLightProgramTextureLocations(app, app->directionalProgramIdx);
-    app->pointProgramIdx = LoadProgram(app, "shaders.glsl", "POINT_LIGHT");
+    app->pointProgramIdx = LoadProgram(app, "Assets/Shaders/shaders.glsl", "POINT_LIGHT");
     SetLightProgramTextureLocations(app, app->pointProgramIdx);
 
     // Create lights
@@ -527,7 +527,7 @@ void Init(App* app)
     }
 
     // Screen Shader
-    app->toScreenProgramIdx = LoadProgram(app, "shaders.glsl", "TO_SCREEN");
+    app->toScreenProgramIdx = LoadProgram(app, "Assets/Shaders/shaders.glsl", "TO_SCREEN");
     Program& toScreenProgram = app->programs[app->toScreenProgramIdx];
     toScreenProgram.albedoLocation = glGetUniformLocation(toScreenProgram.handle, "uColor");
     

@@ -12,13 +12,16 @@ layout(binding = 0, std140) uniform GlobalParams
 	float zfar;
 };
 
-#if defined(VERTEX) ///////////////////////////////////////////////////
-
 layout(binding = 1, std140) uniform LocalParams
 {
 	mat4 uWorldMatrix;
 	mat4 uWorldViewProjectionMatrix;
+
+	unsigned int hasNormalMapping;
+	unsigned int hasReliefMapping;
 };
+
+#if defined(VERTEX) ///////////////////////////////////////////////////
 
 layout(location = 0) in vec3 aPosition;
 layout(location = 1) in vec3 aNormal;
@@ -30,6 +33,7 @@ out vec2 vTexCoord;
 out vec3 vPosition;
 out vec3 vNormal;
 out vec3 vViewDir;
+out mat3 vTBN;
 
 void main()
 {
@@ -38,6 +42,12 @@ void main()
 	vPosition = vec3(uWorldMatrix * vec4(aPosition, 1.0));
 	vNormal = normalize(vec3(uWorldMatrix * vec4(aNormal, 0.0)));
 	vViewDir = normalize(uCameraPosition - vPosition);
+
+	vec3 T = normalize(vec3(uWorldMatrix * vec4(aTangent, 0.0)));
+	vec3 B = normalize(vec3(uWorldMatrix * vec4(aBitangent, 0.0)));
+
+	vTBN = mat3(T, B, vNormal);
+
 	gl_Position = uWorldViewProjectionMatrix * vec4(aPosition, 1.0);
 }
 
@@ -47,8 +57,11 @@ in vec2 vTexCoord;
 in vec3 vPosition;
 in vec3 vNormal;
 in vec3 vViewDir;
+in mat3 vTBN;
 
 uniform sampler2D uAlbedo;
+uniform sampler2D uNormal;
+uniform sampler2D uRelief;
 
 layout(location = 0) out vec4 oAlbedo;
 layout(location = 1) out vec4 oNormal;
@@ -62,14 +75,62 @@ float LinearizeDepth(float depth)
 }    
 
 void main()
-{
-	oNormal = vec4(vNormal, 1.0);
-	oPosition = vec4(vPosition, 1.0);
+{	
+	vec3 normal = vNormal;
+	vec2 UVs = vTexCoord;
 
 	float depth = LinearizeDepth(gl_FragCoord.z) / zfar;
-	oDepth = vec4(vec3(depth), 1.0);
 
-	oAlbedo = texture(uAlbedo, vTexCoord);
+	if (hasReliefMapping > 0)
+	{
+		float heightScale = 0.1;
+		const float minLayers = 8.0;
+		const float maxLayers = 64.0;
+		float numLayers = mix(maxLayers, minLayers, abs(dot(vec3(0.0, 0.0, 1.0), vViewDir)));
+		float layerDepth = 1.0 / numLayers;
+		float currentLayerDepth = 0.0;
+	
+		// Remove the z division if you want less aberated results
+		vec2 S = vec2(vViewDir.x, 0.0) / vViewDir.z * heightScale; 
+		vec2 deltaUVs = S / numLayers;
+		
+		float currentDepthMapValue = 1.0 - texture(uRelief, UVs).r;
+		
+		// Loop till the point on the heightmap is "hit"
+		while(currentLayerDepth < currentDepthMapValue)
+		{
+		    UVs -= deltaUVs;
+		    currentDepthMapValue = 1.0 - texture(uRelief, UVs).r;
+		    currentLayerDepth += layerDepth;
+		}
+	
+		// Apply Occlusion (interpolation with prev value)
+		vec2 prevTexCoords = UVs + deltaUVs;
+		float afterDepth  = currentDepthMapValue - currentLayerDepth;
+		float beforeDepth = 1.0 - texture(uRelief, prevTexCoords).r - currentLayerDepth + layerDepth;
+		float weight = afterDepth / (afterDepth - beforeDepth);
+		
+		UVs = prevTexCoords * weight + UVs * (1.0f - weight);
+	
+		// Get rid of anything outside the normal range
+		if(UVs.x > 1.0 || UVs.y > 1.0 || UVs.x < 0.0 || UVs.y < 0.0)
+			discard;
+	}
+
+	if (hasNormalMapping > 0)
+	{
+		normal = normalize(texture(uNormal, UVs).xyz);
+
+		normal = normalize(normal * 2.0 - 1.0);
+		normal.y *= -1;
+
+		normal = normalize(vTBN * normal);
+	}
+
+	oAlbedo = texture(uAlbedo, UVs);
+	oNormal = vec4(normal, 1.0);
+	oPosition = vec4(vPosition, 1.0);
+	oDepth = vec4(vec3(depth), 1.0);
 }
 
 #endif

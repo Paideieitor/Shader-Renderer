@@ -113,7 +113,7 @@ struct Material
     u32 albedoTextureIdx;
     u32 emissiveTextureIdx;
     u32 specularTextureIdx;
-    u32 normalsTextureIdx;
+    u32 normalsTextureIdx = 0u;
     u32 bumpTextureIdx;
 };
 
@@ -239,6 +239,10 @@ struct App
     glm::vec3 cameraDirection = glm::vec3(0);
     f32 camSpeed = 100.0f;
     f32 camTurnSpeed = 100.0f;
+
+    // Normal Mapping
+    bool useNormalMap = true;
+    bool useReliefMap = true;
 
     // Loop
     f32  deltaTime;

@@ -49,7 +49,7 @@
     <ClInclude Include="ThirdParty\stb\stb_image.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="WorkingDir\shaders.glsl" />
+    <None Include="WorkingDir\Assets\Shaders\shaders.glsl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

@@ -215,7 +215,7 @@ void ProcessAssimpMesh(const aiScene* scene, aiMesh* mesh, Mesh* myMesh, u32 bas
             vertices.push_back(mesh->mTextureCoords[0][i].y);
         }
 
-        if (mesh->mTangents != nullptr && mesh->mBitangents)
+        if (mesh->mTangents && mesh->mBitangents)
         {
             hasTangentSpace = true;
             vertices.push_back(mesh->mTangents[i].x);

@@ -202,6 +202,29 @@ u32 BuildScreen(App* app)
     return modelIdx;
 }
 
+void InsertVectexData(std::vector<float>& vertices, const glm::vec3& pos, const glm::vec3& normal, const glm::vec2& texCoords, const glm::vec3& tangent, const glm::vec3& bitangent)
+{
+    vertices.insert(vertices.end(), { /*V*/pos.x, pos.y, pos.z, /*N*/normal.x, normal.y, normal.z, /*TC*/texCoords.x, texCoords.y, /*T*/tangent.x, tangent.y, tangent.z, /*B*/bitangent.x, bitangent.y, bitangent.z });
+}
+
+void GetTangentSpace(glm::vec3& tangent, glm::vec3& bitangent, const glm::vec3& pos1, const glm::vec3& pos2, const glm::vec3& pos3, const glm::vec2& uv1, const glm::vec2& uv2, const glm::vec2& uv3)
+{
+    glm::vec3 edge1 = pos2 - pos1;
+    glm::vec3 edge2 = pos3 - pos1;
+    glm::vec2 deltaUV1 = uv2 - uv1;
+    glm::vec2 deltaUV2 = uv3 - uv1;
+
+    float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+
+    tangent.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+    tangent.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+    tangent.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+
+    bitangent.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
+    bitangent.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
+    bitangent.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
+}
+
 u32 BuildPlane(App* app)
 {
     app->models.push_back(Model());
@@ -216,14 +239,40 @@ u32 BuildPlane(App* app)
     Submesh& submesh = mesh.submeshes.back();
 
     // Save vertex data
+
+    // positions
+    glm::vec3 pos1(-1.0, 0.0, 1.0);
+    glm::vec3 pos2(-1.0, 0.0, -1.0);
+    glm::vec3 pos3(1.0, 0.0, -1.0);
+    glm::vec3 pos4(1.0, 0.0, 1.0);
+    // texture coordinates
+    glm::vec2 uv1(0.0, 1.0);
+    glm::vec2 uv2(0.0, 0.0);
+    glm::vec2 uv3(1.0, 0.0);
+    glm::vec2 uv4(1.0, 1.0);
+    // normal vector
+    glm::vec3 nm(0.0, 1.0, 0.0);
+
+    // tangent space
+    glm::vec3 tangent1;
+    glm::vec3 bitangent1;
+    GetTangentSpace(tangent1, bitangent1, pos1, pos2, pos3, uv1, uv2, uv3);
+
+    glm::vec3 tangent2;
+    glm::vec3 bitangent2;
+    GetTangentSpace(tangent2, bitangent2, pos1, pos3, pos4, uv1, uv3, uv4);
+
     submesh.vertexOffset = 0;
-    submesh.vertices.insert(submesh.vertices.end(), { /*V*/-1, 0, -1, /*N*/0, 1, 0, /*TC*/0, 0, /*T*/0, 0, 0, /*B*/0, 0, 0 });
-    submesh.vertices.insert(submesh.vertices.end(), { /*V*/ 1, 0, -1, /*N*/0, 1, 0, /*TC*/1, 0, /*T*/0, 0, 0, /*B*/0, 0, 0 });
-    submesh.vertices.insert(submesh.vertices.end(), { /*V*/ 1, 0,  1, /*N*/0, 1, 0, /*TC*/1, 1, /*T*/0, 0, 0, /*B*/0, 0, 0 });
-    submesh.vertices.insert(submesh.vertices.end(), { /*V*/-1, 0,  1, /*N*/0, 1, 0, /*TC*/0, 1, /*T*/0, 0, 0, /*B*/0, 0, 0 });
+    InsertVectexData(submesh.vertices, pos1, nm, uv1, tangent1, bitangent1);
+    InsertVectexData(submesh.vertices, pos2, nm, uv2, tangent1, bitangent1);
+    InsertVectexData(submesh.vertices, pos3, nm, uv3, tangent1, bitangent1);
+
+    InsertVectexData(submesh.vertices, pos1, nm, uv1, tangent2, bitangent2);
+    InsertVectexData(submesh.vertices, pos3, nm, uv3, tangent2, bitangent2);
+    InsertVectexData(submesh.vertices, pos4, nm, uv4, tangent2, bitangent2);
 
     submesh.indexOffset = 0;
-    submesh.indices.insert(submesh.indices.end(), { 0, 2, 1, 0, 3, 2 });
+    submesh.indices.insert(submesh.indices.end(), { 0, 2, 1, 3, 5, 4 });
 
     // Save attributes to be read
     submesh.vertexBufferLayout.attributes.push_back(VertexBufferAttribute{ 0, 3, 0 });
@@ -472,6 +521,7 @@ void Init(App* app)
     memcpy(app->gpuName, glGetString(GL_RENDERER), 64);
     memcpy(app->openGlVendor, glGetString(GL_VENDOR), 64);
     memcpy(app->GLSLVersion, glGetString(GL_SHADING_LANGUAGE_VERSION), 64);
+
     GLint extensionNum;
     glGetIntegerv(GL_NUM_EXTENSIONS, &extensionNum);
     for (int i = 0; i < extensionNum; ++i)
@@ -486,21 +536,44 @@ void Init(App* app)
     Program& texturedMeshProgram = app->programs[app->texturedMeshProgramIdx];
 
     texturedMeshProgram.albedoLocation = glGetUniformLocation(texturedMeshProgram.handle, "uAlbedo");
+    texturedMeshProgram.normalsLocation = glGetUniformLocation(texturedMeshProgram.handle, "uNormal");
+    texturedMeshProgram.depthLocation = glGetUniformLocation(texturedMeshProgram.handle, "uRelief");
     
     // Create entities
     app->defaultTextureIdx = LoadTexture2D(app, "Assets/Textures/color_white.png");
+
     BuildPrimitives(app);
+    
+    //app->patrickIdx = LoadModel(app, "Assets/Models/Patrick/Patrick.obj");
+    //CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(0, 0, 0), glm::vec3(0.5f), glm::vec3(0, 0, 0));
+    //CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(0, 0, -20), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    //CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    //CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(-5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    //CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    //CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(-10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    //
+    //CreateEntity(app, app->sphereIdx, app->texturedMeshProgramIdx, glm::vec3(0, 3.2, 0), glm::vec3(1.4f), glm::vec3(220, 234, 43));
 
-    app->patrickIdx = LoadModel(app, "Assets/Patrick/Patrick.obj");
-    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(0, 0, -20), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(-5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(-10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    // Normals Stuff
 
-    CreateEntity(app, app->planeIdx, app->texturedMeshProgramIdx, glm::vec3(0, -3.4, 0), glm::vec3(100), glm::vec3(0,0,0));
-    CreateEntity(app, app->sphereIdx, app->texturedMeshProgramIdx, glm::vec3(0, 3.2, 0), glm::vec3(1.4f), glm::vec3(220, 234, 43));
+    //app->materials.emplace_back(Material());
+    //Material& material = app->materials.back();
+    //material.albedoTextureIdx = LoadTexture2D(app, "Assets/Textures/brickwall.jpg");
+    //material.normalsTextureIdx = LoadTexture2D(app, "Assets/Textures/brickwall_normal.jpg");
+    //
+    //u32 brickwallIdx = CreateEntity(app, app->planeIdx, app->texturedMeshProgramIdx, glm::vec3(0, -3.4, 0), glm::vec3(20), glm::vec3(0, 0, 0));
+    //app->models[app->entities[brickwallIdx].modelIdx].materialIdx.emplace_back(app->materials.size() - 1u);
+
+    // Relief Stuff
+
+    app->materials.emplace_back(Material());
+    Material& material = app->materials.back();
+    material.albedoTextureIdx = LoadTexture2D(app, "Assets/Textures/diffuse.png");
+    material.normalsTextureIdx = LoadTexture2D(app, "Assets/Textures/normal.png");
+    material.bumpTextureIdx = LoadTexture2D(app, "Assets/Textures/displacement.png");
+    
+    u32 reliefwallIdx = CreateEntity(app, app->planeIdx, app->texturedMeshProgramIdx, glm::vec3(0, 0, 0), glm::vec3(2), glm::vec3(90, 0, 0));
+    app->models[app->entities[reliefwallIdx].modelIdx].materialIdx.emplace_back(app->materials.size() - 1u);
     
     // Deferred Shading
     app->directionalProgramIdx = LoadProgram(app, "Assets/Shaders/shaders.glsl", "DIRECTIONAL_LIGHT");
@@ -587,7 +660,6 @@ void Init(App* app)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Depth test
-    glDisable(GL_CULL_FACE);
     glEnable(GL_BLEND);
 }
 
@@ -627,6 +699,8 @@ void Gui(App* app)
     ImGui::SameLine();
     if (ImGui::Button("DEPTH"))
         app->mode = Mode::DEPTH;
+    ImGui::Checkbox("Use Normal Mapping", &app->useNormalMap);
+    ImGui::Checkbox("Use Relief Mapping", &app->useReliefMap);
     ImGui::Separator();
 
     ImGui::Checkbox("Moving Lights", &app->movingLights);
@@ -957,6 +1031,26 @@ void Update(App* app)
         entity.uniformOffset = app->uniform.head;
         PushMat4(app->uniform, entity.transform);
         PushMat4(app->uniform, app->projection * app->view * entity.transform);
+
+        u32 hasNormalMapping = 0u;
+        if (app->useNormalMap)
+            for (u32 m = 0u; m < app->models[entity.modelIdx].materialIdx.size(); ++m)
+                if (app->materials[app->models[entity.modelIdx].materialIdx[m]].normalsTextureIdx > 0)
+                {
+                    hasNormalMapping = 1u;
+                    break;
+                }
+        PushUInt(app->uniform, hasNormalMapping);
+
+        u32 hasReliefMapping = 0u;
+        if (app->useReliefMap)
+            for (u32 m = 0u; m < app->models[entity.modelIdx].materialIdx.size(); ++m)
+                if (app->materials[app->models[entity.modelIdx].materialIdx[m]].bumpTextureIdx > 0)
+                {
+                    hasReliefMapping = 1u;
+                    break;
+                }
+        PushUInt(app->uniform, hasReliefMapping);
         entity.uniformSize = app->uniform.head - entity.uniformOffset;
     }
 
@@ -992,6 +1086,7 @@ void Update(App* app)
 void Render(App* app)
 {
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
 
     // Pass global parameters data to shader
     glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(0), app->uniform.handle, 0, app->globalsSize);
@@ -1018,6 +1113,8 @@ void Render(App* app)
         glUseProgram(program.handle);
 
         glUniform1i(program.albedoLocation, 0);
+        glUniform1i(program.normalsLocation, 1);
+        glUniform1i(program.depthLocation, 2);
     
         Mesh& mesh = app->meshes[model.meshIdx];
     
@@ -1029,17 +1126,25 @@ void Render(App* app)
             GLuint vao = FindVAO(mesh, i, program);
             glBindVertexArray(vao);
     
-            GLuint textureHandle = app->textures[app->defaultTextureIdx].handle;
+            GLuint albedoHandle = app->textures[app->defaultTextureIdx].handle;
+            GLuint normalHandle = 0u;
+            GLuint reliefHandle = 0u;
             if (model.materialIdx.size() > 0u)
             {
                 u32 submeshMaterialIdx = model.materialIdx[i];
                 Material& submeshMaterial = app->materials[submeshMaterialIdx];
-                textureHandle = app->textures[submeshMaterial.albedoTextureIdx].handle;
+                albedoHandle = app->textures[submeshMaterial.albedoTextureIdx].handle;
+                normalHandle = app->textures[submeshMaterial.normalsTextureIdx].handle;
+                reliefHandle = app->textures[submeshMaterial.bumpTextureIdx].handle;
             }
     
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, textureHandle);
-    
+            glBindTexture(GL_TEXTURE_2D, albedoHandle);
+            glActiveTexture(GL_TEXTURE0 + 1);
+            glBindTexture(GL_TEXTURE_2D, normalHandle);
+            glActiveTexture(GL_TEXTURE0 + 2);
+            glBindTexture(GL_TEXTURE_2D, reliefHandle);
+
             Submesh& submesh = mesh.submeshes[i];
             glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
         }
@@ -1048,6 +1153,7 @@ void Render(App* app)
 
     // Lighting Pass
     glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

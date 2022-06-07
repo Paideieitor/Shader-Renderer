@@ -328,7 +328,7 @@ void ProcessAssimpMaterial(App* app, aiMaterial* material, Material& myMaterial,
         material->GetTexture(aiTextureType_HEIGHT, 0, &aiFilename);
         String filename = MakeString(aiFilename.C_Str());
         String filepath = MakePath(directory, filename);
-        myMaterial.bumpTextureIdx = LoadTexture2D(app, filepath.str);
+        myMaterial.normalsTextureIdx = LoadTexture2D(app, filepath.str);
     }
 
     //myMaterial.createNormalFromBump();

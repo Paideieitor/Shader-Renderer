@@ -34,6 +34,8 @@ out vec3 vPosition;
 out vec3 vNormal;
 out vec3 vViewDir;
 out mat3 vTBN;
+out vec3 vTanViewPos;
+out vec3 vTanFragPos;
 
 void main()
 {
@@ -48,6 +50,9 @@ void main()
 
 	vTBN = mat3(T, B, vNormal);
 
+	vTanViewPos  = vTBN * uCameraPosition;
+    vTanFragPos  = vTBN * vPosition;
+
 	gl_Position = uWorldViewProjectionMatrix * vec4(aPosition, 1.0);
 }
 
@@ -58,6 +63,8 @@ in vec3 vPosition;
 in vec3 vNormal;
 in vec3 vViewDir;
 in mat3 vTBN;
+in vec3 vTanViewPos;
+in vec3 vTanFragPos;
 
 uniform sampler2D uAlbedo;
 uniform sampler2D uNormal;
@@ -71,32 +78,29 @@ layout(location = 3) out vec4 oDepth;
 float LinearizeDepth(float depth) 
 {
     float z = depth * 2.0 - 1.0; // back to NDC 
-    return (2.0 * znear * zfar) / (zfar + znear - z * (zfar - znear));	
+    return (2.0 * znear * zfar) / (zfar + znear - z * (zfar - znear)) / zfar;
 }    
 
 void main()
 {	
 	vec3 normal = vNormal;
 	vec2 UVs = vTexCoord;
-
-	float depth = LinearizeDepth(gl_FragCoord.z) / zfar;
+	float depth = gl_FragCoord.z;
 
 	if (hasReliefMapping > 0)
 	{
-		float heightScale = 0.1;
-		const float minLayers = 8.0;
-		const float maxLayers = 64.0;
-		float numLayers = mix(maxLayers, minLayers, abs(dot(vec3(0.0, 0.0, 1.0), vViewDir)));
+		vec3 tanViewDir = normalize(vTanFragPos - vTanViewPos);
+		float heightScale = 0.05;
+		const float minLayers = 8.0 * 5.0;
+		const float maxLayers = 64.0 * 5.0;
+		float numLayers = mix(maxLayers, minLayers, abs(dot(vec3(0,0,1), tanViewDir)));
 		float layerDepth = 1.0 / numLayers;
 		float currentLayerDepth = 0.0;
 	
-		// Remove the z division if you want less aberated results
-		vec2 S = vec2(vViewDir.x, 0.0) / vViewDir.z * heightScale; 
+		vec2 S = vec2(tanViewDir.x, tanViewDir.y) / tanViewDir.z * heightScale; 
 		vec2 deltaUVs = S / numLayers;
 		
 		float currentDepthMapValue = 1.0 - texture(uRelief, UVs).r;
-		
-		// Loop till the point on the heightmap is "hit"
 		while(currentLayerDepth < currentDepthMapValue)
 		{
 		    UVs -= deltaUVs;
@@ -104,14 +108,15 @@ void main()
 		    currentLayerDepth += layerDepth;
 		}
 	
-		// Apply Occlusion (interpolation with prev value)
 		vec2 prevTexCoords = UVs + deltaUVs;
 		float afterDepth  = currentDepthMapValue - currentLayerDepth;
 		float beforeDepth = 1.0 - texture(uRelief, prevTexCoords).r - currentLayerDepth + layerDepth;
 		float weight = afterDepth / (afterDepth - beforeDepth);
 		
 		UVs = prevTexCoords * weight + UVs * (1.0f - weight);
-	
+
+		// NO DEPTH SADGE
+
 		// Get rid of anything outside the normal range
 		if(UVs.x > 1.0 || UVs.y > 1.0 || UVs.x < 0.0 || UVs.y < 0.0)
 			discard;
@@ -130,7 +135,9 @@ void main()
 	oAlbedo = texture(uAlbedo, UVs);
 	oNormal = vec4(normal, 1.0);
 	oPosition = vec4(vPosition, 1.0);
-	oDepth = vec4(vec3(depth), 1.0);
+
+	gl_FragDepth = depth;
+	oDepth = vec4(vec3(LinearizeDepth(depth)), 1.0);
 }
 
 #endif

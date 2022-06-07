@@ -240,7 +240,7 @@ struct App
     f32 camSpeed = 100.0f;
     f32 camTurnSpeed = 100.0f;
 
-    // Normal Mapping
+    // Mapping Techniques
     bool useNormalMap = true;
     bool useReliefMap = true;
 
@@ -279,6 +279,7 @@ struct App
     u32 defaultTextureIdx;
 
     u32 patrickIdx;
+    u32 cyborgIdx;
     u32 planeIdx;
     u32 sphereIdx;
     u32 screenIdx;

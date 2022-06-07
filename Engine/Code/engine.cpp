@@ -509,7 +509,7 @@ void Init(App* app)
     
     app->aspectRatio = (float)app->displaySize.x / (float)app->displaySize.y;
     app->znear = 0.1f;
-    app->zfar = 1000.0f;
+    app->zfar = 100.0f;
     app->projection = glm::perspective(glm::radians(60.0f), app->aspectRatio, app->znear, app->zfar);
     
     app->cameraPosition = glm::vec3(0, 0, 20);
@@ -543,26 +543,18 @@ void Init(App* app)
     app->defaultTextureIdx = LoadTexture2D(app, "Assets/Textures/color_white.png");
 
     BuildPrimitives(app);
+
+    CreateEntity(app, app->planeIdx, app->texturedMeshProgramIdx, glm::vec3(0, -3.4, 0), glm::vec3(20), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->sphereIdx, app->texturedMeshProgramIdx, glm::vec3(0, 3.2, 0), glm::vec3(1.4f), glm::vec3(220, 234, 43));
     
-    //app->patrickIdx = LoadModel(app, "Assets/Models/Patrick/Patrick.obj");
-    //CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(0, 0, 0), glm::vec3(0.5f), glm::vec3(0, 0, 0));
-    //CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(0, 0, -20), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    //CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    //CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(-5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    //CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    //CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(-10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    //
-    //CreateEntity(app, app->sphereIdx, app->texturedMeshProgramIdx, glm::vec3(0, 3.2, 0), glm::vec3(1.4f), glm::vec3(220, 234, 43));
-
-    // Normals Stuff
-
-    //app->materials.emplace_back(Material());
-    //Material& material = app->materials.back();
-    //material.albedoTextureIdx = LoadTexture2D(app, "Assets/Textures/brickwall.jpg");
-    //material.normalsTextureIdx = LoadTexture2D(app, "Assets/Textures/brickwall_normal.jpg");
-    //
-    //u32 brickwallIdx = CreateEntity(app, app->planeIdx, app->texturedMeshProgramIdx, glm::vec3(0, -3.4, 0), glm::vec3(20), glm::vec3(0, 0, 0));
-    //app->models[app->entities[brickwallIdx].modelIdx].materialIdx.emplace_back(app->materials.size() - 1u);
+    app->patrickIdx = LoadModel(app, "Assets/Models/Patrick/Patrick.obj");
+    app->cyborgIdx = LoadModel(app, "Assets/Models/Cyborg/cyborg.obj");
+    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(0, 0, 0), glm::vec3(1.0f), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(0, 0, -20), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->cyborgIdx, app->texturedMeshProgramIdx, glm::vec3(5, -15, 3), glm::vec3(5), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->cyborgIdx, app->texturedMeshProgramIdx, glm::vec3(-5, -15, 3), glm::vec3(5), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(-10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
 
     // Relief Stuff
 
@@ -572,7 +564,7 @@ void Init(App* app)
     material.normalsTextureIdx = LoadTexture2D(app, "Assets/Textures/normal.png");
     material.bumpTextureIdx = LoadTexture2D(app, "Assets/Textures/displacement.png");
     
-    u32 reliefwallIdx = CreateEntity(app, app->planeIdx, app->texturedMeshProgramIdx, glm::vec3(0, 0, 0), glm::vec3(2), glm::vec3(90, 0, 0));
+    u32 reliefwallIdx = CreateEntity(app, app->planeIdx, app->texturedMeshProgramIdx, glm::vec3(0, 0, 0), glm::vec3(5), glm::vec3(90, 0, 0));
     app->models[app->entities[reliefwallIdx].modelIdx].materialIdx.emplace_back(app->materials.size() - 1u);
     
     // Deferred Shading
@@ -719,25 +711,6 @@ void Gui(App* app)
         ImGui::DragFloat2("Rotation##camera", (float*)&app->cameraRotation);
         ImGui::SliderFloat("Speed##camera", &app->camSpeed, 0.1f, 500.0f);
         ImGui::SliderFloat("Turn Speed##camera", &app->camTurnSpeed, 0.1f, 500.0f);
-    }
-
-    switch (app->mode)
-    {
-    case Mode::COLOR:
-        app->currentAttachmentHandle = app->albedoAttachmentHandle;
-        break;
-    case Mode::ALBEDO:
-        app->currentAttachmentHandle = app->albedoAttachmentHandle;
-        break;
-    case Mode::NORMALS:
-        app->currentAttachmentHandle = app->normalsAttachmentHandle;
-        break;
-    case Mode::POSITIONS:
-        app->currentAttachmentHandle = app->positionsAttachmentHandle;
-        break;
-    case Mode::DEPTH:
-        app->currentAttachmentHandle = app->depthAttachmentHandle;
-        break;
     }
 
     ImGui::Separator();

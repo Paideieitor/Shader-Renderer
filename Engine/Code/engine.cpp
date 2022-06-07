@@ -551,10 +551,10 @@ void Init(App* app)
     app->cyborgIdx = LoadModel(app, "Assets/Models/Cyborg/cyborg.obj");
     CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(0, 0, 0), glm::vec3(1.0f), glm::vec3(0, 0, 0));
     CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(0, 0, -20), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateEntity(app, app->cyborgIdx, app->texturedMeshProgramIdx, glm::vec3(5, -15, 3), glm::vec3(5), glm::vec3(0, 0, 0));
-    CreateEntity(app, app->cyborgIdx, app->texturedMeshProgramIdx, glm::vec3(-5, -15, 3), glm::vec3(5), glm::vec3(0, 0, 0));
-    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
-    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(-10, 0, 6), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->cyborgIdx, app->texturedMeshProgramIdx, glm::vec3(10, -15, 6), glm::vec3(5), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->cyborgIdx, app->texturedMeshProgramIdx, glm::vec3(-10, -15, 6), glm::vec3(5), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
+    CreateEntity(app, app->patrickIdx, app->texturedMeshProgramIdx, glm::vec3(-5, 0, 3), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0));
 
     // Relief Stuff
 

@@ -115,7 +115,8 @@ void main()
 		
 		UVs = prevTexCoords * weight + UVs * (1.0f - weight);
 
-		// NO DEPTH SADGE
+		// NO DEPTH
+		// IDEA -> USE texture(uRelief, UVs) AND heightScale TO UPDATE THE DEPTH VALUE
 
 		// Get rid of anything outside the normal range
 		if(UVs.x > 1.0 || UVs.y > 1.0 || UVs.x < 0.0 || UVs.y < 0.0)
